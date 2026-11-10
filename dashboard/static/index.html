@@ -88,12 +88,11 @@
 
         <div class="test-select-group">
             <label for="scenario-select" style="font-size: 0.85em; color: #aaa;">Cenário:</label>
-            <select id="scenario-select" onchange="onScenarioChange(this.value)">
+            <select id="scenario-select">
                 <option value="normal" selected>📊 Carga Normal (1–5s)</option>
                 <option value="contention">⚡ Alta Contenção (0s)</option>
                 <option value="skewed">🎯 Carga Desigual / Localidade</option>
                 <option value="disabled">⚠️ Prova de Instrumentação (Sync OFF)</option>
-                <option value="step">👆 Passo a Passo Manual (Disparo Unitário)</option>
             </select>
         </div>
 
@@ -102,15 +101,24 @@
             <input type="number" id="req-count" min="1" max="50" value="10" style="width: 55px;">
         </div>
 
-        <div class="manual-nodes-group" id="manual-nodes-group" style="display: none;">
-            <!-- Gerado dinamicamente via renderManualButtons(currentScale) -->
-        </div>
-
         <button class="btn-success" id="btn-run-workload" onclick="toggleWorkload()">▶️ Iniciar Teste</button>
 
         <div class="test-progress-info" id="workload-info">
             Status: <b id="workload-status-text" style="color: #00ffcc;">Pronto</b>
             &nbsp;|&nbsp; Progresso: <b id="workload-progress-text">0 / 0</b>
+        </div>
+    </div>
+
+    <!-- SEÇÃO SEPARADA: PASSO A PASSO MANUAL (DISPARO UNITÁRIO & DISPUTAS) -->
+    <div class="test-controls-bar manual-controls-bar" id="manual-controls-bar">
+        <div class="test-controls-title" style="color: #38bdf8;">👆 Passo a Passo Manual:</div>
+        
+        <div class="manual-nodes-group" id="manual-nodes-group">
+            <!-- Botões gerados dinamicamente via renderManualButtons(currentScale) -->
+        </div>
+
+        <div class="manual-hint" id="manual-status-hint" style="font-size: 0.8em; color: #94a3b8; margin-left: auto;">
+            Clique nos nós para disparar acessos individuais ou disputas concorrentes.
         </div>
     </div>
 
@@ -761,16 +769,34 @@
             }
             if (scale === 10) {
                 html += `
-                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node8'])">⚡ Disputar Nós 3 e 8 (Fila FIFO)</button>
-                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node6', 'node10'])">⚡ Disputar Nós 2, 6 e 10 (Fila 3 nós)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node8'])">⚡ Disputar Nós 3 e 8 (Fila FIFO)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node6', 'node10'])">⚡ Disputar Nós 2, 6 e 10 (Fila 3 nós)</button>
                 `;
             } else {
                 html += `
-                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nós 3 e 5 (Gera Fila FIFO)</button>
-                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nós 3 e 5 (Gera Fila FIFO)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
                 `;
             }
             group.innerHTML = html;
+            setManualButtonsDisabled(isWorkloadRunning);
+        }
+
+        function setManualButtonsDisabled(disabled) {
+            const group = document.getElementById('manual-nodes-group');
+            if (!group) return;
+            const buttons = group.querySelectorAll('button');
+            buttons.forEach(b => {
+                b.disabled = disabled;
+            });
+            const hint = document.getElementById('manual-status-hint');
+            if (hint) {
+                if (disabled) {
+                    hint.innerHTML = '<span style="color: #f39c12; font-weight: bold;">⏳ Botões desativados durante execução de teste</span>';
+                } else {
+                    hint.innerHTML = '<span style="color: #94a3b8;">Clique nos nós para disparar acessos individuais ou disputas concorrentes.</span>';
+                }
+            }
         }
 
         async function onScaleChange(scaleVal) {
@@ -792,21 +818,6 @@
             } catch (e) {
                 console.error("Erro ao alterar escala:", e);
                 addLog(`[ERRO] Falha ao reconfigurar escala: ${e}`, "system");
-            }
-        }
-
-        function onScenarioChange(scenario) {
-            const manualGroup = document.getElementById('manual-nodes-group');
-            const reqGroup = document.getElementById('req-count-group');
-            const runBtn = document.getElementById('btn-run-workload');
-            if (scenario === 'step') {
-                manualGroup.style.display = 'flex';
-                reqGroup.style.display = 'none';
-                if (runBtn) runBtn.style.display = 'none';
-            } else {
-                manualGroup.style.display = 'none';
-                reqGroup.style.display = 'flex';
-                if (runBtn) runBtn.style.display = 'inline-flex';
             }
         }
 
@@ -832,6 +843,7 @@
                     isWorkloadRunning = true;
                     btn.innerText = "⏹️ Parar Teste";
                     btn.className = "btn-danger";
+                    setManualButtonsDisabled(true);
                 } else {
                     alert(d.error || "Erro ao iniciar carga.");
                 }
@@ -840,10 +852,12 @@
                 isWorkloadRunning = false;
                 btn.innerText = "▶️ Iniciar Teste";
                 btn.className = "btn-success";
+                setManualButtonsDisabled(false);
             }
         }
 
         async function triggerManualStep(nodeId) {
+            if (isWorkloadRunning) return;
             await fetch('/api/workload/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -852,6 +866,7 @@
         }
 
         async function triggerConcurrentContest(nodes) {
+            if (isWorkloadRunning) return;
             await fetch('/api/workload/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -864,6 +879,9 @@
             const btn = document.getElementById('btn-run-workload');
             const statusText = document.getElementById('workload-status-text');
             const progText = document.getElementById('workload-progress-text');
+            const scaleSelect = document.getElementById('scale-select');
+            const scenarioSelect = document.getElementById('scenario-select');
+            const reqCount = document.getElementById('req-count');
 
             isWorkloadRunning = status.running;
             if (isWorkloadRunning) {
@@ -871,13 +889,22 @@
                 btn.className = "btn-danger";
                 statusText.innerText = "Executando";
                 statusText.style.color = "#f39c12";
+                if (scaleSelect) scaleSelect.disabled = true;
+                if (scenarioSelect) scenarioSelect.disabled = true;
+                if (reqCount) reqCount.disabled = true;
             } else {
                 btn.innerText = "▶️ Iniciar Teste";
                 btn.className = "btn-success";
                 statusText.innerText = status.message || "Pronto";
                 statusText.style.color = "#00ffcc";
+                if (scaleSelect) scaleSelect.disabled = false;
+                if (scenarioSelect) scenarioSelect.disabled = false;
+                if (reqCount) reqCount.disabled = false;
             }
             progText.innerText = `${status.completed || 0} / ${status.total || 0}`;
+
+            // Desativa os botões manuais enquanto qualquer teste estiver rodando
+            setManualButtonsDisabled(isWorkloadRunning);
         }
 
         async function resetAllMetrics() {
@@ -1037,6 +1064,8 @@
                 document.getElementById('player-session-name').innerText = data.name || sessionId;
                 document.getElementById('player-bar').style.display = 'flex';
                 document.getElementById('test-controls-bar').style.display = 'none';
+                const manualBar = document.getElementById('manual-controls-bar');
+                if (manualBar) manualBar.style.display = 'none';
 
                 const slider = document.getElementById('replay-slider');
                 slider.max = replayEvents.length - 1;
@@ -1151,6 +1180,8 @@
             replayEvents = [];
             document.getElementById('player-bar').style.display = 'none';
             document.getElementById('test-controls-bar').style.display = 'flex';
+            const manualBar = document.getElementById('manual-controls-bar');
+            if (manualBar) manualBar.style.display = 'flex';
             addLog("[REPLAY] Modo Replay encerrado. Conectado ao cluster ao vivo.", "system");
             
             // Re-sincroniza o estado atual ao vivo

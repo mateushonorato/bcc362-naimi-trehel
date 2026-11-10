@@ -264,6 +264,9 @@ main {
     gap: 6px;
     flex-wrap: wrap;
 }
+.manual-controls-bar {
+    border-color: rgba(56, 189, 248, 0.35);
+}
 .btn-node-step {
     background: #1e293b;
     border: 1px solid #38bdf8;
@@ -278,6 +281,24 @@ main {
 .btn-node-step:hover {
     background: #38bdf8;
     color: #0f172a;
+}
+.btn-node-step.btn-contest {
+    border-color: #f97316;
+    color: #f97316;
+}
+.btn-node-step.btn-contest:hover {
+    background: #f97316;
+    color: #0f172a;
+}
+.btn-node-step:disabled, .btn-node-step[disabled] {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    border-color: #475569 !important;
+    color: #64748b !important;
+    background: #0f172a !important;
+    pointer-events: none !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 .test-progress-info {
     font-size: 0.85em;
