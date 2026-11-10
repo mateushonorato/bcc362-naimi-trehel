@@ -96,7 +96,7 @@ class NaimiTrehelNode:
             self.log_event("ACQUIRE", request_id, "(SYNC_DISABLED)")
             return (time.monotonic() - start_mono) * 1000.0
 
-        with self. state_lock:
+        with self.state_lock:
             self.requesting = True
             self.log_event("REQUEST", request_id)
             if self.father is not None:
