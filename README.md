@@ -78,28 +78,35 @@ Considere $N$ processos participantes no Cluster Sync:
 ### Dependências e Versões
 - **Imagem Base:** `python:3.12-alpine` (utiliza apenas bibliotecas padrão: `http.server`, `urllib.request`, `threading`, `queue`, `time`, `json`).
 - **Orquestração:** Docker Engine `>= 24.0` e Docker Compose `v2` / Docker Swarm.
-- **Python do Host:** Python `>= 3.10` (para execução do script de automação de testes `collect_metrics.py`).
+- **Python do Host:** Python `>= 3.10` (para orquestração de testes via `collect_metrics.py` e geração de figuras com `matplotlib` e `numpy` via `generate_charts.py`).
 
 ### Arquivos do Projeto
 ```text
 .
-├── client.py                  # Gerador de carga dos clientes (pedidos sequenciais com sleep parametrizável)
-├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel, canais FIFO e telemetria de espera)
-├── observer.py                # Verificador passivo de exclusão mútua (eventos BEGIN/END e endpoint /stats)
-├── collect_metrics.py         # Script de automação para execução, repetições e coleta estruturada de métricas
-├── results/                   # Diretório de métricas e dados experimentais consolidados
+├── client.py                       # Gerador de carga dos clientes (pedidos sequenciais com sleep parametrizável)
+├── node.py                         # Nó do Cluster Sync (Naimi-Tréhel, canais FIFO e telemetria de espera)
+├── observer.py                     # Verificador passivo de exclusão mútua (eventos BEGIN/END e endpoint /stats)
+├── collect_metrics.py              # Script de automação para execução, repetições e coleta estruturada de métricas
+├── generate_charts.py              # Atalho de execução na raiz para geração dos gráficos de desempenho
+├── results/                        # Diretório de métricas, gráficos e dados experimentais consolidados
+│   ├── generate_charts.py          # Script gerador de figuras e gráficos científicos em alta resolução (300 DPI)
 │   ├── metrics_results_local.csv   # Tabela CSV consolidada das execuções locais (Compose)
 │   ├── metrics_results_local.json  # Base JSON completa com telemetria detalhada (Local)
 │   ├── metrics_results_swarm.csv   # Tabela CSV consolidada das execuções em nuvem (OCI Swarm)
-│   └── metrics_results_swarm.json  # Base JSON completa com telemetria detalhada (Nuvem)
-├── Dockerfile                 # Definição da imagem leve baseada em python:3.12-alpine
-├── docker-compose.yml         # Orquestração local base com 5 nós, 5 clientes e 1 observador
-├── docker-compose.ten-nodes.yml # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
-├── docker-compose.unequal.yml # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
-├── docker-stack.yml           # Orquestração Swarm base com 5 nós distribuídos em 3 VMs (Oracle Cloud)
-├── docker-stack.ten-nodes.yml # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
-├── docker-stack.unequal.yml   # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
-└── README.md                  # Documentação completa e relatório de experimentos
+│   ├── metrics_results_swarm.json  # Base JSON completa com telemetria detalhada (Nuvem)
+│   └── charts/                     # Gráficos de validação teórica e comparativos cruzados
+│       ├── 01_complexidade_mensagens.png       # Cota Harmônica O(log N) vs. medições empíricas locais
+│       ├── 02_espera_fila_fifo.png             # Previsão determinística FIFO (N-1)*mu_CS vs. espera medida
+│       ├── 03_efeito_localidade.png            # Economia de mensagens por reuso local do token (Carga Desigual)
+│       └── 04_overhead_rede_local_vs_nuvem.png # Comparativo de latência de espera: Local vs. Nuvem OCI
+├── Dockerfile                      # Definição da imagem leve baseada em python:3.12-alpine
+├── docker-compose.yml              # Orquestração local base com 5 nós, 5 clientes e 1 observador
+├── docker-compose.ten-nodes.yml    # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
+├── docker-compose.unequal.yml      # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+├── docker-stack.yml                # Orquestração Swarm base com 5 nós distribuídos em 3 VMs (Oracle Cloud)
+├── docker-stack.ten-nodes.yml      # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
+├── docker-stack.unequal.yml        # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+└── README.md                       # Documentação completa e relatório de experimentos
 ```
 
 ---
