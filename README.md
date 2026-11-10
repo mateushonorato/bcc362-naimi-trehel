@@ -364,11 +364,11 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 </p>
 
 #### 3. Dinâmica de Espera e Fila FIFO (*Liveness* e Ausência de Starvation)
-- Sob **Alta Contenção**, os clientes solicitam o recurso sem pausa (`CLIENT_MIN_SLEEP=0`). A espera deixa de ser dominada por intervalos ociosos e passa a refletir o esvaziamento sequencial da fila distribuída `next_queue`.
-- Sendo a permanência na seção crítica uniformemente distribuída entre $0{,}2\text{ s}$ e $1{,}0\text{ s}$ ($\mu = 0{,}6\text{ s}$):
-  - Em 5 nós: um nó enfileirado na $k$-ésima posição espera em média $4 \times 0{,}6\text{ s} \approx 2{,}4\text{ s}$. A mediana empírica medida foi de **2.426 ms** (~2.42 s).
-  - Em 10 nós: um nó enfileirado espera em média $9 \times 0{,}6\text{ s} \approx 5{,}4\text{ s}$. A mediana empírica medida foi de **5.318 ms** (~5.32 s).
-- A correspondência confirma a ordenação estrita FIFO de `next_queue` e comprova matematicamente a **ausência de starvation**: nenhum processo foi ultrapassado arbitrariamente ou retido além do tempo determinístico de serviço dos predecessores.
+- Sob **Alta Contenção**, os clientes solicitam o recurso sem pausa (`CLIENT_MIN_SLEEP=0`). A espera deixa de ser dominada por intervalos ociosos e passa a refletir estritamente o esvaziamento sequencial da fila distribuída `next_queue`.
+- **Fundamentação Estatística:** Como a permanência na seção crítica é uniformemente distribuída entre $0{,}2\text{ s}$ e $1{,}0\text{ s}$, a distribuição é perfeitamente simétrica, fazendo com que a média coincida com a mediana teórica ($\mu = \text{mediana} = 0{,}6\text{ s}$). Por extensão da soma de variáveis simétricas independentes, a mediana teórica de espera para um nó enfileirado na cauda atrás dos $(N-1)$ demais processos concorrentes é exatamente $(N - 1) \times \mu_{CS}$:
+  - **Em 5 nós ($N=5$):** Espera pelos 4 predecessores $\rightarrow 4 \times 0{,}6\text{ s} = 2{,}4\text{ s} = 2.400\text{ ms}$. A mediana medida foi de **2.426 ms** (desvio de apenas $+1{,}1\%$).
+  - **Em 10 nós ($N=10$):** Espera pelos 9 predecessores $\rightarrow 9 \times 0{,}6\text{ s} = 5{,}4\text{ s} = 5.400\text{ ms}$. A mediana medida foi de **5.318 ms** (desvio de apenas $-1{,}5\%$).
+- A correspondência rigorosa ($\ge 98{,}5\%$ de aderência ao modelo analítico) confirma a ordenação estrita FIFO de `next_queue` e comprova matematicamente a **ausência de starvation**: nenhum processo foi ultrapassado arbitrariamente ou retido além do tempo determinístico de serviço dos predecessores.
 
 <p align="center">
   <img src="results/charts/02_espera_fila_fifo.png" alt="Espera Mediana sob Alta Contenção vs. Previsão Teórica FIFO" width="850">
