@@ -123,7 +123,7 @@ cluster_state = {
     "topology": {
         "edges": {"node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1"},
         "token_holder": "node1",
-        "in_cs": None,
+        "in_cs": [],
         "known_nodes": ["node1", "node2", "node3", "node4", "node5"],
         "next_queues": {}
     },
@@ -165,7 +165,19 @@ def update_cluster_state(body: dict):
         if body.get("token_holder"):
             cluster_state["topology"]["token_holder"] = body["token_holder"]
         if "in_cs" in body:
-            cluster_state["topology"]["in_cs"] = body["in_cs"]
+            in_cs_val = body["in_cs"]
+            if not isinstance(cluster_state["topology"].get("in_cs"), list):
+                cluster_state["topology"]["in_cs"] = []
+            if isinstance(in_cs_val, list):
+                cluster_state["topology"]["in_cs"] = list(in_cs_val)
+            elif in_cs_val is None:
+                node_to_remove = body.get("node_id") or sender
+                if node_to_remove and node_to_remove in cluster_state["topology"]["in_cs"]:
+                    cluster_state["topology"]["in_cs"].remove(node_to_remove)
+            elif isinstance(in_cs_val, str) and in_cs_val:
+                if in_cs_val not in cluster_state["topology"]["in_cs"]:
+                    cluster_state["topology"]["in_cs"].append(in_cs_val)
+            body["in_cs"] = list(cluster_state["topology"]["in_cs"])
 
     elif event_type == "QUEUE":
         node = body.get("node") or body.get("node_id")
@@ -180,11 +192,26 @@ def update_cluster_state(body: dict):
 
     elif event_type == "OBSERVER":
         ev = body.get("event")
-        if ev == "BEGIN":
-            cluster_state["topology"]["in_cs"] = body.get("node_id")
-        elif ev == "END":
-            if cluster_state["topology"]["in_cs"] == body.get("node_id"):
-                cluster_state["topology"]["in_cs"] = None
+        nid = body.get("node_id")
+        active_nodes = body.get("active_nodes")
+
+        if not isinstance(cluster_state["topology"].get("in_cs"), list):
+            old = cluster_state["topology"].get("in_cs")
+            cluster_state["topology"]["in_cs"] = [old] if old else []
+
+        if active_nodes is not None:
+            cluster_state["topology"]["in_cs"] = list(active_nodes)
+        else:
+            if ev == "BEGIN" and nid:
+                if nid not in cluster_state["topology"]["in_cs"]:
+                    cluster_state["topology"]["in_cs"].append(nid)
+            elif ev == "END" and nid:
+                if nid in cluster_state["topology"]["in_cs"]:
+                    cluster_state["topology"]["in_cs"].remove(nid)
+
+        body["in_cs"] = list(cluster_state["topology"]["in_cs"])
+
+        if ev == "END":
             cluster_state["metrics"]["cs_entries"] += 1
         if body.get("overlap"):
             cluster_state["metrics"]["overlap_count"] += 1
@@ -509,7 +536,7 @@ async def reset_metrics():
     cluster_state["recent_logs"] = []
     cluster_state["recent_timeline"] = []
     cluster_state["topology"]["next_queues"] = {}
-    cluster_state["topology"]["in_cs"] = None
+    cluster_state["topology"]["in_cs"] = []
     cluster_state["topology"]["token_holder"] = "node1"
     cluster_state["topology"]["edges"] = {
         f"node{i}": "node1" for i in range(2, current_scale + 1)

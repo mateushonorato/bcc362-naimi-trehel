@@ -145,6 +145,7 @@ class ObserverHandler(BaseHTTPRequestHandler):
 
             is_overlap = (event_type == "BEGIN" and current_count > 1)
             active_cnt = len(active_entries)
+            active_nodes_now = sorted(list(set(n for n, _ in active_entries)))
 
         notify_dashboard({
             "type": "OBSERVER",
@@ -152,7 +153,8 @@ class ObserverHandler(BaseHTTPRequestHandler):
             "node_id": node_id,
             "request_id": req_id,
             "overlap": is_overlap,
-            "active_count": active_cnt
+            "active_count": active_cnt,
+            "active_nodes": active_nodes_now
         })
 
         self.send_response(200)

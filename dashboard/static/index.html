@@ -20,6 +20,7 @@
         .legend-box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
         .box-token { background: #2ecc71; border: 2px solid #f1c40f; }
         .box-cs { background: #e67e22; border: 2px solid #ffffff; }
+        .box-violation { background: #c0392b; border: 2px solid #ff0000; }
         .box-node { background: #2980b9; border: 1px solid #ffffff; }
         .log-revpath { border-left-color: #f1c40f; color: #f1c40f; }
         .log-enter { border-left-color: #e67e22; color: #e67e22; font-weight: bold; }
@@ -134,7 +135,8 @@
             <h2>🌳 Topologia da Árvore Lógica (father) & Fila Distribuída (next)</h2>
             <div class="topology-legend">
                 <div class="legend-item"><span class="legend-box box-token"></span> 👑 Portador do Token</div>
-                <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica</div>
+                <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica (Exclusivo)</div>
+                <div class="legend-item"><span class="legend-box box-violation"></span> ⚠️ Violação SC (Múltiplos)</div>
                 <div class="legend-item"><span class="legend-box box-node"></span> 🔵 Nó do Cluster</div>
                 <div class="legend-item" style="color: #38bdf8;">──► Ponteiro Father</div>
                 <div class="legend-item" style="color: #f97316;">- -► Fila Next (FIFO)</div>
@@ -274,9 +276,19 @@
         // Topologia Naimi-Tréhel
         let currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
         let currentTokenHolder = "node1";
-        let currentNodeInCS = null;
+        let currentNodesInCS = new Set();
         let currentNextQueues = {};
         let knownNodes = new Set(["node1", "node2", "node3", "node4", "node5"]);
+
+        function updateNodesInCS(val) {
+            if (Array.isArray(val)) {
+                currentNodesInCS = new Set(val);
+            } else if (typeof val === 'string' && val.trim() !== '') {
+                currentNodesInCS = new Set([val]);
+            } else {
+                currentNodesInCS = new Set();
+            }
+        }
 
         let nodeHeartbeats = {};
         let nodeWaitTimes = {};
@@ -352,8 +364,13 @@
 
                 sortedNodes.forEach(nodeId => {
                     let label = nodeId;
-                    if (nodeId === currentTokenHolder) label += " 👑 (Token)";
-                    if (nodeId === currentNodeInCS) label += " ⚡ (SC)";
+                    const hasToken = (nodeId === currentTokenHolder);
+                    const inCS = currentNodesInCS.has(nodeId);
+
+                    if (hasToken) label += " 👑 (Token)";
+                    if (inCS) {
+                        label += (currentNodesInCS.size > 1) ? " ⚠️ (VIOLAÇÃO SC)" : " ⚡ (SC)";
+                    }
                     code += `    ${nodeId}["${label}"]\n`;
                 });
 
@@ -384,7 +401,12 @@
                 // Estilização dos Nós
                 code += "\n";
                 sortedNodes.forEach(nodeId => {
-                    if (nodeId === currentNodeInCS) {
+                    const inCS = currentNodesInCS.has(nodeId);
+                    const isViolation = inCS && currentNodesInCS.size > 1;
+
+                    if (isViolation) {
+                        code += `    style ${nodeId} fill:#c0392b,stroke:#ff0000,stroke-width:3px,color:#fff\n`;
+                    } else if (inCS) {
                         code += `    style ${nodeId} fill:#e67e22,stroke:#ffffff,stroke-width:3px,color:#fff\n`;
                     } else if (nodeId === currentTokenHolder) {
                         code += `    style ${nodeId} fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff\n`;
@@ -484,7 +506,7 @@
                 if (s.topology) {
                     currentFathers = { ...(s.topology.edges || {}) };
                     currentTokenHolder = s.topology.token_holder || "node1";
-                    currentNodeInCS = s.topology.in_cs || null;
+                    updateNodesInCS(s.topology.in_cs);
                     currentNextQueues = { ...(s.topology.next_queues || {}) };
                     if (s.topology.known_nodes) {
                         knownNodes = new Set(s.topology.known_nodes);
@@ -515,6 +537,7 @@
                 } else if (data.type === 'RESET') {
                     clearLogs();
                     dismissViolationBanner();
+                    currentNodesInCS.clear();
                     const ovStat = document.getElementById('overlap-stat');
                     if (ovStat) ovStat.style.color = '#2ecc71';
                 }
@@ -574,7 +597,7 @@
                     currentTokenHolder = data.token_holder;
                 }
                 if (data.in_cs !== undefined) {
-                    currentNodeInCS = data.in_cs;
+                    updateNodesInCS(data.in_cs);
                 }
                 renderTopology();
             }
@@ -604,11 +627,11 @@
                 } else if (msg.includes("REQUEST")) {
                     addTimeline("REQUEST", "Requisição de CS", sender);
                 } else if (msg.includes("ENTER")) {
-                    currentNodeInCS = sender;
+                    currentNodesInCS.add(sender);
                     addTimeline("ENTER", "Entrou na Seção Crítica", sender);
                     renderTopology();
                 } else if (msg.includes("EXIT") || msg.includes("RELEASE")) {
-                    if (currentNodeInCS === sender) currentNodeInCS = null;
+                    currentNodesInCS.delete(sender);
                     renderTopology();
                 } else if (msg.includes("COMMITTED")) {
                     csEntries++;
@@ -621,13 +644,14 @@
 
             // 4. Eventos do Observer
             if (data.type === 'OBSERVER') {
-                if (data.event === 'BEGIN') {
-                    currentNodeInCS = data.node_id;
-                    renderTopology();
+                if (data.active_nodes) {
+                    currentNodesInCS = new Set(data.active_nodes);
+                } else if (data.event === 'BEGIN') {
+                    currentNodesInCS.add(data.node_id);
                 } else if (data.event === 'END') {
-                    if (currentNodeInCS === data.node_id) currentNodeInCS = null;
-                    renderTopology();
+                    currentNodesInCS.delete(data.node_id);
                 }
+                renderTopology();
                 if (data.overlap) {
                     overlapCount++;
                     const ovStat = document.getElementById('overlap-stat');
@@ -1108,7 +1132,7 @@
                 const s = replayInitialState;
                 currentFathers = { ...(s.topology?.edges || {}) };
                 currentTokenHolder = s.topology?.token_holder || "node1";
-                currentNodeInCS = s.topology?.in_cs || null;
+                updateNodesInCS(s.topology?.in_cs);
                 currentNextQueues = { ...(s.topology?.next_queues || {}) };
                 totalMessages = s.metrics?.total_messages || 0;
                 csEntries = s.metrics?.cs_entries || 0;
@@ -1117,7 +1141,7 @@
             } else {
                 currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
                 currentTokenHolder = "node1";
-                currentNodeInCS = null;
+                currentNodesInCS.clear();
                 currentNextQueues = {};
                 totalMessages = 0;
                 csEntries = 0;
