@@ -3,16 +3,12 @@ dashboard/server.py — Dashboard Web do Cluster Sync (Naimi–Tréhel)
 BCC362 — Sistemas Distribuídos | UFOP | Professor Joubert Lima
 
 Servidor FastAPI que recebe eventos HTTP dos nós e do observador e os transmite
-via WebSocket ao navegador em tempo real. Exibe a topologia da árvore lógica
-(Mermaid.js), linha do tempo de mensagens (Chart.js), métricas de Singhal e
-heatmap de espera por nó. Suporta gravação e replay de sessões para apresentação.
+via WebSocket ao navegador em tempo real. Mantém o estado consolidado em memória
+para que conexões novas ou recarregamentos de página (F5) restaurem instantaneamente
+a topologia, métricas e histórico completos.
 
 ARQUITETURA (sem RabbitMQ):
   node.py / observer.py ──POST /event──► dashboard/server.py ──WebSocket /ws──► navegador
-
-O dashboard é um serviço PASSIVO e OPCIONAL: não interfere no protocolo
-Naimi–Tréhel, não concede nem bloqueia acessos, não altera os resultados
-dos benchmarks automatizados (collect_metrics.py).
 """
 
 import asyncio
@@ -30,13 +26,100 @@ app.mount("/static", StaticFiles(directory="dashboard/static"), name="static")
 SESSIONS_DIR = "dashboard/sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 
+# ---------------------------------------------------------------------------
+# Estado global consolidado mantido em memória
+# ---------------------------------------------------------------------------
+cluster_state = {
+    "topology": {
+        "edges": {"node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1"},
+        "token_holder": "node1",
+        "in_cs": None,
+        "known_nodes": ["node1", "node2", "node3", "node4", "node5"]
+    },
+    "metrics": {
+        "total_messages": 0,
+        "cs_entries": 0,
+        "overlap_count": 0,
+        "node_wait_times": {}
+    },
+    "recent_logs": [],
+    "recent_timeline": []
+}
+
+
+def update_cluster_state(body: dict):
+    event_type = body.get("type", "LOG")
+    sender = body.get("node_id") or body.get("node")
+
+    if sender and sender.startswith("node"):
+        if sender not in cluster_state["topology"]["known_nodes"]:
+            cluster_state["topology"]["known_nodes"].append(sender)
+            cluster_state["topology"]["known_nodes"].sort()
+
+    cluster_state["metrics"]["total_messages"] += 1
+
+    if event_type == "TOPOLOGY":
+        if body.get("edges"):
+            for e in body["edges"]:
+                f = e.get("from")
+                t = e.get("to")
+                if t is None or t == "":
+                    cluster_state["topology"]["edges"].pop(f, None)
+                else:
+                    cluster_state["topology"]["edges"][f] = t
+        if body.get("token_holder"):
+            cluster_state["topology"]["token_holder"] = body["token_holder"]
+        if "in_cs" in body:
+            cluster_state["topology"]["in_cs"] = body["in_cs"]
+
+    elif event_type == "OBSERVER":
+        ev = body.get("event")
+        if ev == "BEGIN":
+            cluster_state["topology"]["in_cs"] = body.get("node_id")
+        elif ev == "END":
+            if cluster_state["topology"]["in_cs"] == body.get("node_id"):
+                cluster_state["topology"]["in_cs"] = None
+            cluster_state["metrics"]["cs_entries"] += 1
+        if body.get("overlap"):
+            cluster_state["metrics"]["overlap_count"] += 1
+
+    elif event_type == "WAIT_TIME":
+        w = body.get("wait_ms")
+        if sender and w is not None:
+            times = cluster_state["metrics"]["node_wait_times"].setdefault(sender, [])
+            times.append(w)
+            if len(times) > 50:
+                times.pop(0)
+
+    # Registra log recente
+    msg = body.get("message")
+    if msg:
+        cluster_state["recent_logs"].insert(0, {
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "msg": msg,
+            "sender": sender or "sistema"
+        })
+        if len(cluster_state["recent_logs"]) > 100:
+            cluster_state["recent_logs"].pop()
+
+        # Registra evento na timeline se for uma etapa chave do protocolo
+        for kw in ["REQUEST", "TOKEN", "REV_PATH", "ENTER", "EXIT", "COMMITTED"]:
+            if kw in msg:
+                cluster_state["recent_timeline"].insert(0, {
+                    "type": kw,
+                    "desc": msg.replace(f"[{kw}]", "").replace(f"[{kw:<9}]", "").strip(),
+                    "node": sender or "sistema",
+                    "time": datetime.now().strftime("%H:%M:%S")
+                })
+                if len(cluster_state["recent_timeline"]) > 20:
+                    cluster_state["recent_timeline"].pop()
+                break
+
 
 # ---------------------------------------------------------------------------
 # Gerenciador de conexões WebSocket
 # ---------------------------------------------------------------------------
 class ConnectionManager:
-    """Mantém a lista de browsers conectados e transmite eventos em broadcast."""
-
     def __init__(self):
         self.active: list[WebSocket] = []
 
@@ -49,7 +132,6 @@ class ConnectionManager:
             self.active.remove(ws)
 
     async def broadcast(self, payload: dict):
-        """Transmite um dict JSON para todos os clientes conectados."""
         text = json.dumps(payload)
         for ws in list(self.active):
             try:
@@ -60,47 +142,31 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-
 # ---------------------------------------------------------------------------
-# Gravação e replay de sessões (para a demonstração no seminário)
+# Gravação e replay de sessões
 # ---------------------------------------------------------------------------
 recording_buffer: list[dict] = []
 is_recording: bool = False
 
 
 def record_event(payload: dict):
-    """Adiciona o evento ao buffer de gravação, se a gravação estiver ativa."""
     if is_recording:
         payload["_ts"] = datetime.now().isoformat()
         recording_buffer.append(payload)
 
 
 # ---------------------------------------------------------------------------
-# Endpoint principal: recebe eventos HTTP dos nós e do observer
+# Endpoints HTTP
 # ---------------------------------------------------------------------------
 @app.post("/event")
 async def receive_event(request: Request):
-    """
-    Recebe eventos POST dos nós (node.py) e do observador (observer.py).
-
-    Formato esperado (campos obrigatórios e opcionais):
-    {
-        "type":       "LOG" | "TOPOLOGY" | "METRICS" | "HEARTBEAT" | "OBSERVER",
-        "node_id":    "node1",          # nó que originou o evento
-        "message":    "...",            # texto livre para o painel de logs (LOG)
-        "edges":      [{"from":"node1","to":"node2","token":true}, ...],  # TOPOLOGY
-        "data":       {...},            # payload de métricas (METRICS)
-        "request_id": "client1-001",   # identificador do pedido (OBSERVER)
-        "event":      "BEGIN" | "END"  # para eventos do observer (OBSERVER)
-    }
-
-    O servidor normaliza o payload, o transmite via WebSocket e o grava
-    no buffer de sessão se a gravação estiver ativa.
-    """
     body = await request.json()
     event_type = body.get("type", "LOG")
 
-    # Normaliza e enriquece o payload antes de retransmitir
+    # Atualiza o estado central consolidado
+    update_cluster_state(body)
+
+    # Normaliza e transmite em broadcast
     payload = {"type": event_type, **body}
     payload.setdefault("ts", datetime.now().isoformat())
 
@@ -109,22 +175,21 @@ async def receive_event(request: Request):
     return {"status": "ok"}
 
 
-# ---------------------------------------------------------------------------
-# WebSocket: canal de streaming para o navegador
-# ---------------------------------------------------------------------------
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await manager.connect(ws)
+    # Envia imediatamente o estado consolidado ao cliente recém-conectado
+    await ws.send_text(json.dumps({
+        "type": "INIT",
+        "state": cluster_state
+    }))
     try:
         while True:
-            await ws.receive_text()   # mantém a conexão viva
+            await ws.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(ws)
 
 
-# ---------------------------------------------------------------------------
-# Rota raiz: serve o index.html do dashboard
-# ---------------------------------------------------------------------------
 @app.get("/")
 async def root():
     with open("dashboard/static/index.html", encoding="utf-8") as f:
@@ -175,15 +240,13 @@ async def replay_session(session_id: str):
     async def _replay():
         for event in events:
             await asyncio.sleep(0.3)
+            update_cluster_state(event)
             await manager.broadcast(event)
 
     asyncio.create_task(_replay())
     return {"status": f"Reproduzindo {session_id} ({len(events)} eventos)."}
 
 
-# ---------------------------------------------------------------------------
-# Ponto de entrada
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "8080"))

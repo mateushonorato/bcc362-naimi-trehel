@@ -25,6 +25,7 @@
         .log-enter { border-left-color: #e67e22; color: #e67e22; font-weight: bold; }
         .log-exit { border-left-color: #3498db; color: #3498db; }
         .log-committed { border-left-color: #2ecc71; color: #2ecc71; }
+        #mermaid-graph svg { max-width: 100%; height: auto; }
     </style>
 </head>
 <body>
@@ -53,17 +54,8 @@
                 <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica</div>
                 <div class="legend-item"><span class="legend-box box-node"></span> 🔵 Nó do Cluster</div>
             </div>
-            <div class="mermaid" id="mermaid-graph">graph TD
-    node1["node1 👑"]
-    node2["node2"] --> node1
-    node3["node3"] --> node1
-    node4["node4"] --> node1
-    node5["node5"] --> node1
-    style node1 fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff
-    style node2 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
-    style node3 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
-    style node4 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
-    style node5 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
+            <div id="mermaid-graph" style="min-height: 280px; display: flex; align-items: center; justify-content: center; color: #aaa;">
+                Carregando topologia da árvore...
             </div>
         </section>
 
@@ -119,7 +111,12 @@
         // ==============================================
         // INICIALIZAÇÃO DO MERMAID E CHART.JS
         // ==============================================
-        mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: true, curve: 'basis' } });
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, curve: 'basis' }
+        });
 
         const ctx = document.getElementById('trafficChart').getContext('2d');
         const trafficChart = new Chart(ctx, {
@@ -157,14 +154,14 @@
         let overlapCount = 0;
         let isRecording = false;
 
-        // Topologia Naimi-Tréhel
-        let currentFathers = {};     // { "node2": "node1", "node3": "node1", ... }
+        // Topologia Naimi-Tréhel inicial
+        let currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
         let currentTokenHolder = "node1";
         let currentNodeInCS = null;
         let knownNodes = new Set(["node1", "node2", "node3", "node4", "node5"]);
 
         let nodeHeartbeats = {};
-        let nodeWaitTimes = {};      // { "node1": [120, 140, ...] }
+        let nodeWaitTimes = {};
         let timelineEvents = [];
 
         // Taxa de mensagens para o gráfico
@@ -182,7 +179,67 @@
         }, 1000);
 
         // ==============================================
-        // CONEXÃO WEBSOCKET
+        // RENDERIZAÇÃO ROBUSTA COM mermaid.render()
+        // ==============================================
+        let renderId = 0;
+        let isRenderingMermaid = false;
+        let queuedRender = false;
+
+        async function renderTopology() {
+            if (isRenderingMermaid) {
+                queuedRender = true;
+                return;
+            }
+            isRenderingMermaid = true;
+
+            try {
+                let code = "graph TD\n";
+                const sortedNodes = Array.from(knownNodes).sort();
+
+                sortedNodes.forEach(nodeId => {
+                    let label = nodeId;
+                    if (nodeId === currentTokenHolder) label += " 👑 (Token)";
+                    if (nodeId === currentNodeInCS) label += " ⚡ (SC)";
+                    code += `    ${nodeId}["${label}"]\n`;
+                });
+
+                Object.keys(currentFathers).forEach(child => {
+                    const parent = currentFathers[child];
+                    if (parent && child !== parent) {
+                        code += `    ${child} -->|father| ${parent}\n`;
+                    }
+                });
+
+                code += "\n";
+                sortedNodes.forEach(nodeId => {
+                    if (nodeId === currentNodeInCS) {
+                        code += `    style ${nodeId} fill:#e67e22,stroke:#ffffff,stroke-width:3px,color:#fff\n`;
+                    } else if (nodeId === currentTokenHolder) {
+                        code += `    style ${nodeId} fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff\n`;
+                    } else {
+                        code += `    style ${nodeId} fill:#2980b9,stroke:#ffffff,stroke-width:1px,color:#fff\n`;
+                    }
+                });
+
+                const uniqueId = `mermaid-svg-${++renderId}`;
+                const { svg } = await mermaid.render(uniqueId, code);
+                const container = document.getElementById('mermaid-graph');
+                if (container) {
+                    container.innerHTML = svg;
+                }
+            } catch (err) {
+                console.error("Erro na renderização do Mermaid:", err);
+            } finally {
+                isRenderingMermaid = false;
+                if (queuedRender) {
+                    queuedRender = false;
+                    renderTopology();
+                }
+            }
+        }
+
+        // ==============================================
+        // CONEXÃO WEBSOCKET E SINCRONIZAÇÃO DE ESTADO
         // ==============================================
         let ws;
         function connectWS() {
@@ -212,12 +269,50 @@
                 }
             };
         }
-        connectWS();
 
         // ==============================================
         // PROCESSAMENTO DE EVENTOS RECEBIDOS
         // ==============================================
         function handleIncomingEvent(data) {
+            // Evento INIT: recebido imediatamente ao conectar/recarregar a página
+            if (data.type === 'INIT' && data.state) {
+                const s = data.state;
+                if (s.topology) {
+                    currentFathers = { ...s.topology.edges };
+                    currentTokenHolder = s.topology.token_holder || "node1";
+                    currentNodeInCS = s.topology.in_cs || null;
+                    if (s.topology.known_nodes) {
+                        knownNodes = new Set(s.topology.known_nodes);
+                    }
+                }
+                if (s.metrics) {
+                    totalMessages = s.metrics.total_messages || 0;
+                    csEntries = s.metrics.cs_entries || 0;
+                    overlapCount = s.metrics.overlap_count || 0;
+                    nodeWaitTimes = { ...(s.metrics.node_wait_times || {}) };
+                    document.getElementById('total-msgs').innerText = totalMessages;
+                    document.getElementById('cs-entries').innerText = csEntries;
+                    document.getElementById('cs-entries-stat').innerText = csEntries;
+                    document.getElementById('overlap-stat').innerText = overlapCount;
+                }
+                if (s.recent_logs && s.recent_logs.length > 0) {
+                    const c = document.getElementById('log-container');
+                    c.innerHTML = '';
+                    s.recent_logs.slice().reverse().forEach(l => {
+                        addLog(`[${l.ts}] ${l.msg}`, getLogClass(l.msg));
+                    });
+                }
+                if (s.recent_timeline && s.recent_timeline.length > 0) {
+                    timelineEvents = s.recent_timeline.slice().reverse();
+                    renderTimeline();
+                }
+                renderTopology();
+                renderHeatmap();
+                renderNodes();
+                updateCalculatedMetrics();
+                return;
+            }
+
             totalMessages++;
             windowMsgs++;
             document.getElementById('total-msgs').innerText = totalMessages;
@@ -254,30 +349,24 @@
             // 2. Logs do Protocolo
             if (data.type === 'LOG' || data.message) {
                 const msg = data.message || "";
-                let logClass = "info";
+                const logClass = getLogClass(msg);
 
                 if (msg.includes("REV_PATH")) {
-                    logClass = "revpath";
                     addTimeline("REV_PATH", msg.replace(/\[REV_PATH\s*\]/, "").trim(), sender);
                 } else if (msg.includes("TOKEN")) {
-                    logClass = "token";
                     addTimeline("TOKEN", "Posse de Token transferida", sender);
                     if (data.token_holder) currentTokenHolder = data.token_holder;
                     renderTopology();
                 } else if (msg.includes("REQUEST")) {
-                    logClass = "request";
                     addTimeline("REQUEST", "Requisição de CS", sender);
                 } else if (msg.includes("ENTER")) {
-                    logClass = "enter";
                     currentNodeInCS = sender;
                     addTimeline("ENTER", "Entrou na Seção Crítica", sender);
                     renderTopology();
                 } else if (msg.includes("EXIT") || msg.includes("RELEASE")) {
-                    logClass = "exit";
                     if (currentNodeInCS === sender) currentNodeInCS = null;
                     renderTopology();
                 } else if (msg.includes("COMMITTED")) {
-                    logClass = "committed";
                     csEntries++;
                     document.getElementById('cs-entries').innerText = csEntries;
                     document.getElementById('cs-entries-stat').innerText = csEntries;
@@ -324,46 +413,14 @@
             }
         }
 
-        // ==============================================
-        // RENDERIZAÇÃO DA TOPOLOGIA MERMAID
-        // ==============================================
-        let renderTimeout = null;
-        function renderTopology() {
-            clearTimeout(renderTimeout);
-            renderTimeout = setTimeout(() => {
-                let code = "graph TD\n";
-                const sortedNodes = Array.from(knownNodes).sort();
-
-                sortedNodes.forEach(nodeId => {
-                    let label = nodeId;
-                    if (nodeId === currentTokenHolder) label += " 👑";
-                    if (nodeId === currentNodeInCS) label += " ⚡[SC]";
-                    code += `    ${nodeId}["${label}"]\n`;
-                });
-
-                Object.keys(currentFathers).forEach(child => {
-                    const parent = currentFathers[child];
-                    if (parent && child !== parent) {
-                        code += `    ${child} -->|father| ${parent}\n`;
-                    }
-                });
-
-                code += "\n";
-                sortedNodes.forEach(nodeId => {
-                    if (nodeId === currentNodeInCS) {
-                        code += `    style ${nodeId} fill:#e67e22,stroke:#ffffff,stroke-width:3px,color:#fff\n`;
-                    } else if (nodeId === currentTokenHolder) {
-                        code += `    style ${nodeId} fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff\n`;
-                    } else {
-                        code += `    style ${nodeId} fill:#2980b9,stroke:#ffffff,stroke-width:1px,color:#fff\n`;
-                    }
-                });
-
-                const div = document.getElementById('mermaid-graph');
-                div.innerHTML = code;
-                div.removeAttribute('data-processed');
-                mermaid.run({ nodes: [div] });
-            }, 80);
+        function getLogClass(msg) {
+            if (msg.includes("REV_PATH")) return "revpath";
+            if (msg.includes("TOKEN")) return "token";
+            if (msg.includes("REQUEST")) return "request";
+            if (msg.includes("ENTER")) return "enter";
+            if (msg.includes("EXIT") || msg.includes("RELEASE")) return "exit";
+            if (msg.includes("COMMITTED")) return "committed";
+            return "info";
         }
 
         // ==============================================
@@ -503,6 +560,12 @@
                 alert("Erro ao consultar sessões: " + e);
             }
         }
+
+        // Inicialização imediata ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTopology();
+            connectWS();
+        });
     </script>
 </body>
 </html>
