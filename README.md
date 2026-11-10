@@ -332,7 +332,7 @@ Foram executadas **20 rodadas de teste**, contemplando a prova de instrumentaç�
 | **Carga Normal** | 10 nós | **0** | **1** | 61.79 s | **3.53** | 2488.36 ms |
 | **Alta Contenção** | 5 nós | **0** | **1** | 31.07 s | **2.94** | 2426.46 ms |
 | **Alta Contenção** | 10 nós | **0** | **1** | 59.80 s | **3.67** | 5317.99 ms |
-| **Carga Desigual** | 5 nós | **0** | **1** | 40.42 s | **2.58** | 278.75 ms |
+| **Carga Desigual** | 5 nós | **0** | **1** | 40.42 s | **2.59** | 278.75 ms |
 | **Carga Desigual** | 10 nós | **0** | **1** | 59.46 s | **3.48** | 2445.04 ms |
 
 ---
@@ -351,7 +351,7 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 
 - **Topologia de 5 nós ($N=5$):**
   $$H_4 + 1 = \left(1 + \frac{1}{2} + \frac{1}{3} + \frac{1}{4}\right) + 1 \approx 2{,}083 + 1 = 3{,}083\text{ msgs/entrada}$$
-  - *Média empírica medida:* **2.86 msgs/entrada** (Normal), **2.94 msgs/entrada** (Alta Contenção) e **2.58 msgs/entrada** (Desigual). Todas abaixo da cota teórica superior média.
+  - *Média empírica medida:* **2.86 msgs/entrada** (Normal), **2.94 msgs/entrada** (Alta Contenção) e **2.59 msgs/entrada** (Desigual). Todas abaixo da cota teórica superior média.
 - **Topologia de 10 nós ($N=10$):**
   $$H_9 + 1 = \left(\sum_{i=1}^9 \frac{1}{i}\right) + 1 \approx 2{,}829 + 1 = 3{,}829\text{ msgs/entrada}$$
   - *Média empírica medida:* **3.53 msgs/entrada** (Normal), **3.67 msgs/entrada** (Alta Contenção) e **3.48 msgs/entrada** (Desigual).
@@ -375,10 +375,13 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 </p>
 
 #### 4. Efeito de Localidade na Carga Desigual
-- No cenário de **Carga Desigual**, onde `client1` realizou requisições frequentes (intervalo de $0{,}1\text{ s}$ a $0{,}3\text{ s}$ contra $1\text{ a }5\text{ s}$ dos demais), o número médio de mensagens por entrada sofreu redução:
-  - 5 nós: caiu de $2{,}86$ (Normal) para **2.58 msgs/entrada**.
-  - 10 nós: caiu de $3{,}53$ (Normal) para **3.48 msgs/entrada**.
-- **Explicação Teórica:** Quando o `node1` recebe novas requisições em rajada enquanto ainda detém a posse do token (`has_token == True`), a entrada na seção crítica é concedida localmente sem nenhuma troca de mensagens pela rede (`0 msgs`). A reversão de caminhos otimiza naturalmente rajadas locais, beneficiando nós com maior demanda sem penalizar a garantia de repasse aos demais nós enfileirados.
+- No cenário de **Carga Desigual**, onde `client1` realizou requisições frequentes em rajada (intervalo de $0{,}1\text{ s}$ a $0{,}3\text{ s}$ contra $1\text{ a }5\text{ s}$ dos demais), o número médio de mensagens por entrada sofreu redução quando comparado à Carga Normal:
+  - **Topologia de 5 nós ($N=5$):** O tráfego médio caiu de $2{,}86$ para **2.59 msgs/entrada** (média exata de $2{,}587$), alcançando uma economia de **$-9{,}6\%$** ($-0{,}27$ msgs/entrada).
+  - **Topologia de 10 nós ($N=10$):** O tráfego médio caiu de $3{,}53$ para **3.48 msgs/entrada**, com economia de **$-1{,}2\%$** ($-0{,}04$ msgs/entrada).
+- **Explicação Teórica (Reuso Local do Token):** Quando o `node1` recebe novas requisições em rajada enquanto ainda detém a posse do token (`has_token == True`), a entrada na seção crítica é concedida localmente sem nenhuma troca de mensagens pela rede (`0 msgs`). A reversão de caminhos otimiza naturalmente rajadas locais, beneficiando nós com maior demanda sem penalizar a garantia de repasse aos demais nós enfileirados.
+- **Por que a Economia é Superior em 5 Nós ($-9{,}6\%$ vs. $-1{,}2\%$)?**
+  - Em **5 nós**, o nó em rajada (`node1`) representa **20%** de todos os clientes do cluster. Como os outros 4 nós realizam requisições com intervalos espaçados ($1\text{ a }5\text{ s}$), a probabilidade de disputa simultânea é baixa, permitindo que `node1` emende múltiplas entradas consecutivas retendo o token localmente antes que outro nó o solicite.
+  - Em **10 nós**, há **9 outros concorrentes ativos** (90% do cluster). A probabilidade estocástica de que ao menos um dos outros 9 clientes gere um `REQUEST` e enfileire-se em `next_queue` durante o ciclo é expressivamente maior, obrigando `node1` a despachar o token pela rede com mais frequência e diluindo o ganho de localidade.
 
 <p align="center">
   <img src="results/charts/03_efeito_localidade.png" alt="Efeito de Localidade e Reuso do Token na Carga Desigual" width="850">
@@ -451,7 +454,7 @@ A comparação direta entre os dados coletados no host de desenvolvimento (Local
 | **Carga Normal** | 10 nós | 3.53 msgs/entrada | 3.47 msgs/entrada | -0.06 |
 | **Alta Contenção** | 5 nós | 2.94 msgs/entrada | 3.13 msgs/entrada | +0.19 |
 | **Alta Contenção** | 10 nós | 3.67 msgs/entrada | 3.53 msgs/entrada | -0.14 |
-| **Carga Desigual** | 5 nós | 2.58 msgs/entrada | 2.40 msgs/entrada | -0.18 |
+| **Carga Desigual** | 5 nós | 2.59 msgs/entrada | 2.40 msgs/entrada | -0.19 |
 | **Carga Desigual** | 10 nós | 3.48 msgs/entrada | 3.55 msgs/entrada | +0.07 |
 
 #### 1. Invariância Topológica do Número de Mensagens — O(log N)
