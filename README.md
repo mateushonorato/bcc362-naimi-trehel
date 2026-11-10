@@ -270,8 +270,7 @@ usage: collect_metrics.py [-h] [--mode {local,swarm}] [--nodes {5,10,both}]
 
 - **Gerar gráficos e figuras para análise teórica:**
   ```bash
-  python3 generate_charts.py
-  # ou diretamente: python3 results/generate_charts.py
+  python3 results/generate_charts.py
   ```
 
 ---
