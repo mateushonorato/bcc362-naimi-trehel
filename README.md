@@ -191,15 +191,34 @@ docker compose down --remove-orphans
 > docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
 > ```
 
-### 5.4. Dashboard Web em Tempo Real (Demonstração Visual)
+### 5.4. Dashboard Web em Tempo Real (Demonstração Visual & Seminário)
 
-O projeto inclui um painel web interativo para acompanhamento ao vivo da execução do protocolo (ideal para a demonstração prática de 8 minutos no seminário):
+O projeto inclui um painel web interativo e desacoplado para acompanhamento didático ao vivo da execução do protocolo (ideal para a demonstração prática de 8 minutos no seminário):
 
 - **Acesso pelo navegador:** [`http://localhost:8080`](http://localhost:8080)
-- **Topologia Dinâmica da Árvore (Mermaid.js):** visualização em tempo real da inversão dos ponteiros `father` e da posse do token (`has_token == True`).
-- **Linha do Tempo e Logs:** registro streaming de mensagens `REQUEST`, `TOKEN`, `REV_PATH`, `ENTER`, `EXIT` e `COMMITTED`.
-- **Métricas Instantâneas:** contadores de tráfego, taxa de mensagens por segundo (Chart.js), tempo de permanência na seção crítica e tempo de espera mediano por nó (Heatmap).
-- **Gravação e Replay de Sessões:** botões integrados para gravar uma rodada de teste e reproduzi-la offline durante os slides da apresentação.
+- **Execução Desacoplada (Ciclo de Vida Independente):**
+  O dashboard roda em seu próprio contêiner perene na rede compartilhada `tp2-net`:
+  ```bash
+  # Iniciar o Dashboard (permanece ativo mesmo se o cluster de nós for reiniciado):
+  docker compose -f docker-compose.dashboard.yml up -d
+  ```
+- **Topologia Completa de Naimi–Tréhel (Mermaid.js):**
+  - **Árvore de Busca (`father`):** visualização em tempo real da inversão dos ponteiros direcionados ao último requerente.
+  - **Fila FIFO Distribuída (`next`):** arestas pontilhadas laranjas e painel dedicado exibindo a fila de nós que aguardam a passagem do token.
+  - **Posse do Token (`has_token`) e Seção Crítica:** destaque visual do portador do token (coroa 👑) e do nó em execução na SC (raio ⚡).
+- **Orquestrador de Cenários Integrado (Disparo sem Terminal):**
+  Permite selecionar e disparar cargas diretamente pela interface web:
+  - *Carga Normal (5 nós, intervalos de 1–5s)*
+  - *Alta Contenção (5 nós, disputa imediata com intervalo 0s)*
+  - *Carga Desigual (Localidade: nós 1 e 2 prioritários)*
+  - *Escala Ampliada (10 nós)*
+  - *Passo a Passo Manual (Disparo unitário de nó individual para explicação didática)*
+- **Player de Replay Quadro a Quadro (Step-by-Step):**
+  Controle multimídia client-side (`[⏮️ Início]`, `[◀️ Passo Anterior]`, `[⏯️ Play/Pause]`, `[▶️ Próximo Passo]`, `[⏭️ Fim]`, scrubber de eventos e seletor de velocidade `0.5x/1x/2.5x`) para congelar e analisar minuciosamente cada reversão de ponteiro.
+- **Gerenciador de Gravações & Demonstrações:**
+  Modal integrado para listar gravações salvas, baixar arquivos `.json` ou importar sessões pré-gravadas (garantindo que a apresentação no seminário funcione até mesmo offline).
+- **Métricas Instantâneas & Reset:**
+  Tráfego por segundo (Chart.js), tempos de permanência na SC, tempo de espera mediano por nó (Heatmap) e botão `🧹 Resetar Métricas` para preparar a tela entre demonstrações.
 
 ---
 

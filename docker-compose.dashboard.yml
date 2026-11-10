@@ -1,0 +1,16 @@
+name: tp2-dashboard
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      RUNNING_IN_DOCKER: "true"
+
+networks:
+  default:
+    name: tp2-net

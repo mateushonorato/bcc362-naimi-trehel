@@ -126,6 +126,7 @@ class NaimiTrehelNode:
                 self.notify_dashboard("TOPOLOGY", {"edges": [{"from": NODE_ID, "to": self.father}]})
             if self.has_token:
                 self.notify_dashboard("TOPOLOGY", {"token_holder": NODE_ID})
+            self.notify_dashboard("QUEUE", {"node": NODE_ID, "next_queue": []})
 
     def _dashboard_worker(self):
         """Worker em background que envia telemetria ao Dashboard sem bloquear o protocolo."""
@@ -324,6 +325,7 @@ class NaimiTrehelNode:
                 next_node = self.next_queue.pop(0)
                 self.has_token = False
                 self.token_event.clear()
+                self.notify_dashboard("QUEUE", {"node": NODE_ID, "next_queue": list(self.next_queue)})
                 self.notify_dashboard("TOPOLOGY", {"token_holder": next_node})
                 self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] RELEASE -> token enviado para {next_node}"})
                 self.log_event("RELEASE", request_id, f"-> enviando token para {next_node}")
@@ -368,6 +370,7 @@ class NaimiTrehelNode:
                 if self.requesting:
                     # Já ocupa ou aguarda a SC: enfileira o solicitante
                     self.next_queue.append(requester)
+                    self.notify_dashboard("QUEUE", {"node": NODE_ID, "next_queue": list(self.next_queue)})
                 else:
                     # Token livre: entrega diretamente ao solicitante
                     self.has_token = False

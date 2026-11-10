@@ -34,28 +34,101 @@
             <h1>🛡️ Cluster Sync — Algoritmo de Naimi–Tréhel (1996)</h1>
             <div id="status-bar">
                 Status: <span id="global-status" class="status-disconnected">Conectando...</span>
-                &nbsp;|&nbsp; Topologia: <b>Árvore Lógica Dinâmica com Reversão de Caminhos</b>
+                &nbsp;|&nbsp; Topologia: <b>Árvore Lógica Dinâmica (father) + Fila FIFO Distribuída (next)</b>
             </div>
         </div>
 
         <div class="chaos-controls">
             <button class="btn-info" onclick="toggleRecording()" id="record-btn">⏺️ Gravar Sessão</button>
-            <button class="btn-success" onclick="showReplayMenu()">▶️ Replay</button>
-            <button class="btn-secondary" onclick="clearLogs()">🧹 Limpar Logs</button>
+            <button class="btn-primary" onclick="openSessionsModal()">📂 Sessões Gravadas</button>
+            <button class="btn-warning" onclick="resetAllMetrics()">🧹 Resetar Métricas</button>
+            <button class="btn-secondary" onclick="clearLogs()">🗑️ Limpar Logs</button>
         </div>
     </header>
+
+    <!-- BARRA DO PLAYER DE REPLAY (QUADRO A QUADRO) -->
+    <div id="player-bar" class="player-bar" style="display: none;">
+        <span class="player-badge" id="player-session-name">Modo Replay</span>
+        
+        <div class="player-buttons">
+            <button class="player-btn" onclick="seekReplay(0)" title="Ir para o Início">⏮️</button>
+            <button class="player-btn" onclick="stepBackward()" title="Passo Anterior">◀️</button>
+            <button class="player-btn" id="play-pause-btn" onclick="togglePlayPause()" title="Play / Pause">▶️</button>
+            <button class="player-btn" onclick="stepForward()" title="Próximo Passo">▶️</button>
+            <button class="player-btn" onclick="seekReplay(replayEvents.length - 1)" title="Ir para o Fim">⏭️</button>
+        </div>
+
+        <div class="player-scrubber">
+            <input type="range" id="replay-slider" class="player-slider" min="0" max="0" value="0" oninput="onSliderChange(this.value)">
+            <span class="player-counter" id="replay-counter">0 / 0</span>
+        </div>
+
+        <div class="player-speed">
+            <select id="replay-speed" onchange="onSpeedChange(this.value)">
+                <option value="1000">0.5x</option>
+                <option value="400" selected>1.0x</option>
+                <option value="150">2.5x</option>
+            </select>
+        </div>
+
+        <button class="player-btn" style="background: #e74c3c;" onclick="exitReplay()">⏹️ Sair do Replay</button>
+    </div>
+
+    <!-- BARRA DE CONTROLE E DISPARO DE TESTES (ORQUESTRADOR DE CENÁRIOS) -->
+    <div class="test-controls-bar" id="test-controls-bar">
+        <div class="test-controls-title">🎮 Orquestrador de Carga:</div>
+        
+        <div class="test-select-group">
+            <label for="scenario-select" style="font-size: 0.85em; color: #aaa;">Cenário:</label>
+            <select id="scenario-select" onchange="onScenarioChange(this.value)">
+                <option value="normal">Carga Normal (5 nós, 1–5s)</option>
+                <option value="contention">Alta Contenção (5 nós, 0s)</option>
+                <option value="skewed">Carga Desigual (Localidade: nós 1 e 2)</option>
+                <option value="ten-nodes">Escala Ampliada (10 nós)</option>
+                <option value="step">Passo a Passo Manual (Disparo Unitário)</option>
+            </select>
+        </div>
+
+        <div class="test-select-group" id="req-count-group">
+            <label for="req-count" style="font-size: 0.85em; color: #aaa;">Reqs/nó:</label>
+            <input type="number" id="req-count" min="1" max="50" value="5" style="width: 55px;">
+        </div>
+
+        <div class="manual-nodes-group" id="manual-nodes-group" style="display: none;">
+            <button class="btn-node-step" onclick="triggerManualStep('node1')">⚡ Nó 1</button>
+            <button class="btn-node-step" onclick="triggerManualStep('node2')">⚡ Nó 2</button>
+            <button class="btn-node-step" onclick="triggerManualStep('node3')">⚡ Nó 3</button>
+            <button class="btn-node-step" onclick="triggerManualStep('node4')">⚡ Nó 4</button>
+            <button class="btn-node-step" onclick="triggerManualStep('node5')">⚡ Nó 5</button>
+        </div>
+
+        <button class="btn-success" id="btn-run-workload" onclick="toggleWorkload()">▶️ Iniciar Teste</button>
+
+        <div class="test-progress-info" id="workload-info">
+            Status: <b id="workload-status-text" style="color: #00ffcc;">Pronto</b>
+            &nbsp;|&nbsp; Progresso: <b id="workload-progress-text">0 / 0</b>
+        </div>
+    </div>
 
     <main>
         <!-- PAINEL 1: TOPOLOGIA MERMAID -->
         <section class="panel" id="topology-panel">
-            <h2>🌳 Topologia da Árvore Lógica Dinâmica (Ponteiros Father)</h2>
+            <h2>🌳 Topologia da Árvore Lógica (father) & Fila Distribuída (next)</h2>
             <div class="topology-legend">
                 <div class="legend-item"><span class="legend-box box-token"></span> 👑 Portador do Token</div>
                 <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica</div>
                 <div class="legend-item"><span class="legend-box box-node"></span> 🔵 Nó do Cluster</div>
+                <div class="legend-item" style="color: #38bdf8;">──► Ponteiro Father</div>
+                <div class="legend-item" style="color: #f97316;">- -► Fila Next (FIFO)</div>
             </div>
+
             <div id="mermaid-graph" style="min-height: 280px; display: flex; align-items: center; justify-content: center; color: #aaa;">
                 Carregando topologia da árvore...
+            </div>
+
+            <!-- Fila Distribuída de Espera -->
+            <div class="queue-box" id="queue-box">
+                📬 <b>Fila FIFO Distribuída (next):</b> <span id="queue-display">Fila vazia (Nenhum nó aguardando)</span>
             </div>
         </section>
 
@@ -107,6 +180,30 @@
         </section>
     </main>
 
+    <!-- MODAL DE SESSÕES GRAVADAS -->
+    <div id="sessions-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-window">
+            <h3>
+                <span>📂 Gerenciador de Gravações e Demonstrações</span>
+                <button class="modal-close-btn" onclick="closeSessionsModal()">✖</button>
+            </h3>
+
+            <div id="sessions-list-container">
+                <p style="color: #94a3b8;">Carregando sessões salvas...</p>
+            </div>
+
+            <div class="modal-upload-box">
+                <label style="cursor: pointer; color: #38bdf8; font-weight: bold;">
+                    📥 Importar Sessão Pré-gravada (.json)
+                    <input type="file" id="import-session-input" accept=".json" style="display: none;" onchange="handleImportFile(this)">
+                </label>
+                <p style="font-size: 0.75em; color: #64748b; margin-top: 5px;">
+                    Permite reproduzir gravações em seminários mesmo sem Docker rodando.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==============================================
         // INICIALIZAÇÃO DO MERMAID E CHART.JS
@@ -154,15 +251,27 @@
         let overlapCount = 0;
         let isRecording = false;
 
-        // Topologia Naimi-Tréhel inicial
+        // Topologia Naimi-Tréhel
         let currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
         let currentTokenHolder = "node1";
         let currentNodeInCS = null;
+        let currentNextQueues = {};
         let knownNodes = new Set(["node1", "node2", "node3", "node4", "node5"]);
 
         let nodeHeartbeats = {};
         let nodeWaitTimes = {};
         let timelineEvents = [];
+
+        // Modo Replay
+        let isReplayMode = false;
+        let replayEvents = [];
+        let replayInitialState = null;
+        let currentReplayIndex = 0;
+        let replayIntervalTimer = null;
+        let replaySpeed = 400;
+
+        // Orquestrador de Carga
+        let isWorkloadRunning = false;
 
         // Taxa de mensagens para o gráfico
         let windowMsgs = 0;
@@ -179,7 +288,7 @@
         }, 1000);
 
         // ==============================================
-        // RENDERIZAÇÃO ROBUSTA COM mermaid.render()
+        // RENDERIZAÇÃO DA TOPOLOGIA COM MERMAID
         // ==============================================
         let renderId = 0;
         let isRenderingMermaid = false;
@@ -203,6 +312,7 @@
                     code += `    ${nodeId}["${label}"]\n`;
                 });
 
+                // Arestas da Árvore de Busca (father)
                 Object.keys(currentFathers).forEach(child => {
                     const parent = currentFathers[child];
                     if (parent && child !== parent) {
@@ -210,6 +320,21 @@
                     }
                 });
 
+                // Arestas da Fila Distribuída (next)
+                let queueNodesText = [];
+                Object.keys(currentNextQueues).forEach(node => {
+                    const q = currentNextQueues[node] || [];
+                    if (q.length > 0) {
+                        let prev = node;
+                        q.forEach(nextN => {
+                            code += `    ${prev} -.->|next (fila)| ${nextN}\n`;
+                            queueNodesText.push(`${prev} ➜ ${nextN}`);
+                            prev = nextN;
+                        });
+                    }
+                });
+
+                // Estilização dos Nós
                 code += "\n";
                 sortedNodes.forEach(nodeId => {
                     if (nodeId === currentNodeInCS) {
@@ -227,6 +352,17 @@
                 if (container) {
                     container.innerHTML = svg;
                 }
+
+                // Atualiza o texto da fila distribuída
+                const qDisplay = document.getElementById('queue-display');
+                if (qDisplay) {
+                    if (queueNodesText.length > 0) {
+                        qDisplay.innerHTML = `<span style="color: #f97316; font-weight: bold;">${queueNodesText.join(" | ")}</span>`;
+                    } else {
+                        qDisplay.innerText = "Fila vazia (Nenhum nó aguardando)";
+                    }
+                }
+
             } catch (err) {
                 console.error("Erro na renderização do Mermaid:", err);
             } finally {
@@ -263,7 +399,9 @@
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    handleIncomingEvent(data);
+                    if (!isReplayMode) {
+                        handleIncomingEvent(data);
+                    }
                 } catch (e) {
                     console.error("Erro ao processar evento WebSocket:", e);
                 }
@@ -274,13 +412,14 @@
         // PROCESSAMENTO DE EVENTOS RECEBIDOS
         // ==============================================
         function handleIncomingEvent(data) {
-            // Evento INIT: recebido imediatamente ao conectar/recarregar a página
-            if (data.type === 'INIT' && data.state) {
+            // Evento INIT ou RESET
+            if ((data.type === 'INIT' || data.type === 'RESET') && data.state) {
                 const s = data.state;
                 if (s.topology) {
-                    currentFathers = { ...s.topology.edges };
+                    currentFathers = { ...(s.topology.edges || {}) };
                     currentTokenHolder = s.topology.token_holder || "node1";
                     currentNodeInCS = s.topology.in_cs || null;
+                    currentNextQueues = { ...(s.topology.next_queues || {}) };
                     if (s.topology.known_nodes) {
                         knownNodes = new Set(s.topology.known_nodes);
                     }
@@ -295,21 +434,38 @@
                     document.getElementById('cs-entries-stat').innerText = csEntries;
                     document.getElementById('overlap-stat').innerText = overlapCount;
                 }
+                if (data.workload) {
+                    updateWorkloadUI(data.workload);
+                }
                 if (s.recent_logs && s.recent_logs.length > 0) {
                     const c = document.getElementById('log-container');
                     c.innerHTML = '';
                     s.recent_logs.slice().reverse().forEach(l => {
                         addLog(`[${l.ts}] ${l.msg}`, getLogClass(l.msg));
                     });
+                } else if (data.type === 'RESET') {
+                    clearLogs();
                 }
                 if (s.recent_timeline && s.recent_timeline.length > 0) {
                     timelineEvents = s.recent_timeline.slice().reverse();
+                    renderTimeline();
+                } else if (data.type === 'RESET') {
+                    timelineEvents = [];
                     renderTimeline();
                 }
                 renderTopology();
                 renderHeatmap();
                 renderNodes();
                 updateCalculatedMetrics();
+                return;
+            }
+
+            // Eventos do Orquestrador de Carga
+            if (data.type === 'WORKLOAD_START' || data.type === 'WORKLOAD_PROGRESS' || data.type === 'WORKLOAD_DONE') {
+                updateWorkloadUI(data.status);
+                if (data.type === 'WORKLOAD_DONE') {
+                    addLog(`[CARGA] ${data.status.message}`, "system");
+                }
                 return;
             }
 
@@ -324,7 +480,7 @@
                 renderNodes();
             }
 
-            // 1. Atualizações de Topologia (Árvore e Token)
+            // 1. Atualizações de Topologia
             if (data.type === 'TOPOLOGY') {
                 if (data.edges) {
                     data.edges.forEach(e => {
@@ -346,7 +502,18 @@
                 renderTopology();
             }
 
-            // 2. Logs do Protocolo
+            // 2. Fila Distribuída (next_queue)
+            if (data.type === 'QUEUE') {
+                const node = data.node;
+                const q = data.next_queue || [];
+                if (node) {
+                    if (q.length > 0) currentNextQueues[node] = q;
+                    else delete currentNextQueues[node];
+                    renderTopology();
+                }
+            }
+
+            // 3. Logs do Protocolo
             if (data.type === 'LOG' || data.message) {
                 const msg = data.message || "";
                 const logClass = getLogClass(msg);
@@ -375,7 +542,7 @@
                 addLog(`[${new Date().toLocaleTimeString()}] ${msg}`, logClass);
             }
 
-            // 3. Eventos do Observer (BEGIN / END / VIOLAÇÃO)
+            // 4. Eventos do Observer
             if (data.type === 'OBSERVER') {
                 if (data.event === 'BEGIN') {
                     currentNodeInCS = data.node_id;
@@ -391,25 +558,12 @@
                 }
             }
 
-            // 4. Métricas e Tempos de Espera
+            // 5. Métricas de Tempo de Espera
             if (data.type === 'WAIT_TIME' && data.wait_ms !== undefined) {
                 if (!nodeWaitTimes[sender]) nodeWaitTimes[sender] = [];
                 nodeWaitTimes[sender].push(data.wait_ms);
                 renderHeatmap();
                 updateCalculatedMetrics();
-            }
-
-            // 5. Métricas Consolidadas vindas do backend
-            if (data.type === 'METRICS' && data.data) {
-                const m = data.data;
-                if (m.msgs_per_cs) document.getElementById('msgs-per-cs').innerText = m.msgs_per_cs;
-                if (m.avg_sd) document.getElementById('avg-sd').innerText = `${m.avg_sd} ms`;
-                if (m.avg_rt) document.getElementById('avg-rt').innerText = `${m.avg_rt} ms`;
-                if (m.throughput) document.getElementById('throughput').innerText = `${m.throughput}/s`;
-                if (m.cs_entries) {
-                    document.getElementById('cs-entries').innerText = m.cs_entries;
-                    document.getElementById('cs-entries-stat').innerText = m.cs_entries;
-                }
             }
         }
 
@@ -522,12 +676,94 @@
         }
 
         // ==============================================
-        // GRAVAÇÃO E REPLAY DE SESSÕES
+        // CONTROLE DE CARGA E CENÁRIOS DE TESTE
+        // ==============================================
+        function onScenarioChange(scenario) {
+            const manualGroup = document.getElementById('manual-nodes-group');
+            const reqGroup = document.getElementById('req-count-group');
+            if (scenario === 'step') {
+                manualGroup.style.display = 'flex';
+                reqGroup.style.display = 'none';
+            } else {
+                manualGroup.style.display = 'none';
+                reqGroup.style.display = 'flex';
+            }
+        }
+
+        async function toggleWorkload() {
+            const btn = document.getElementById('btn-run-workload');
+            if (!isWorkloadRunning) {
+                const scenario = document.getElementById('scenario-select').value;
+                const numReqs = parseInt(document.getElementById('req-count').value, 10) || 5;
+
+                const resp = await fetch('/api/workload/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scenario, num_requests: numReqs })
+                });
+                const d = await resp.json();
+                if (resp.ok) {
+                    isWorkloadRunning = true;
+                    btn.innerText = "⏹️ Parar Teste";
+                    btn.className = "btn-danger";
+                } else {
+                    alert(d.error || "Erro ao iniciar carga.");
+                }
+            } else {
+                await fetch('/api/workload/stop', { method: 'POST' });
+                isWorkloadRunning = false;
+                btn.innerText = "▶️ Iniciar Teste";
+                btn.className = "btn-success";
+            }
+        }
+
+        async function triggerManualStep(nodeId) {
+            await fetch('/api/workload/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenario: 'step', node_id: nodeId })
+            });
+        }
+
+        function updateWorkloadUI(status) {
+            if (!status) return;
+            const btn = document.getElementById('btn-run-workload');
+            const statusText = document.getElementById('workload-status-text');
+            const progText = document.getElementById('workload-progress-text');
+
+            isWorkloadRunning = status.running;
+            if (isWorkloadRunning) {
+                btn.innerText = "⏹️ Parar Teste";
+                btn.className = "btn-danger";
+                statusText.innerText = "Executando";
+                statusText.style.color = "#f39c12";
+            } else {
+                btn.innerText = "▶️ Iniciar Teste";
+                btn.className = "btn-success";
+                statusText.innerText = status.message || "Pronto";
+                statusText.style.color = "#00ffcc";
+            }
+            progText.innerText = `${status.completed || 0} / ${status.total || 0}`;
+        }
+
+        async function resetAllMetrics() {
+            if (confirm("Deseja realmente zerar todas as métricas, gráficos e logs?")) {
+                await fetch('/api/reset', { method: 'POST' });
+            }
+        }
+
+        // ==============================================
+        // GRAVAÇÃO E GESTÃO DE SESSÕES
         // ==============================================
         async function toggleRecording() {
             const btn = document.getElementById('record-btn');
             if (!isRecording) {
-                await fetch('/replay/start-recording', { method: 'POST' });
+                const name = prompt("Digite um nome descritivo para esta gravação (opcional):", `Demonstração ${new Date().toLocaleTimeString()}`);
+                await fetch('/replay/start-recording', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name || undefined })
+                });
                 isRecording = true;
                 btn.innerText = "⏹️ Parar Gravação";
                 btn.style.background = "#e74c3c";
@@ -542,22 +778,246 @@
             }
         }
 
-        async function showReplayMenu() {
+        async function openSessionsModal() {
+            const modal = document.getElementById('sessions-modal');
+            modal.style.display = 'flex';
+            await refreshSessionsList();
+        }
+
+        function closeSessionsModal() {
+            document.getElementById('sessions-modal').style.display = 'none';
+        }
+
+        async function refreshSessionsList() {
+            const container = document.getElementById('sessions-list-container');
             try {
-                const r = await fetch('/replay/sessions');
-                const d = await r.json();
-                if (!d.sessions || d.sessions.length === 0) {
-                    alert("Nenhuma sessão gravada no diretório dashboard/sessions/.");
+                const resp = await fetch('/replay/sessions');
+                const data = await resp.json();
+                if (!data.sessions || data.sessions.length === 0) {
+                    container.innerHTML = '<p style="color: #94a3b8;">Nenhuma gravação salva ainda. Clique em "⏺️ Gravar Sessão" para capturar uma demonstração.</p>';
                     return;
                 }
-                const choice = prompt("Sessões gravadas disponíveis:\n\n" + d.sessions.join("\n") + "\n\nDigite o ID da sessão que deseja reproduzir:");
-                if (choice) {
-                    const resp = await fetch(`/replay/${choice}`, { method: 'POST' });
-                    const resJson = await resp.json();
-                    addLog(`[REPLAY] ${resJson.status}`, "system");
+
+                let html = `
+                    <table class="sessions-table">
+                        <thead>
+                            <tr>
+                                <th>Nome / Descrição</th>
+                                <th>Eventos</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.sessions.forEach(s => {
+                    html += `
+                        <tr>
+                            <td>
+                                <b>${s.name}</b><br>
+                                <span style="font-size: 0.75em; color: #64748b;">${s.id}</span>
+                            </td>
+                            <td>${s.events_count} ev</td>
+                            <td>
+                                <button class="btn-primary" style="padding: 4px 8px; font-size: 0.75em;" onclick="loadSessionToPlayer('${s.id}')">▶️ Player</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75em;" onclick="downloadSessionFile('${s.id}')">💾 JSON</button>
+                                <button class="btn-danger" style="padding: 4px 8px; font-size: 0.75em;" onclick="deleteSessionFile('${s.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<p style="color: #e74c3c;">Erro ao carregar sessões: ${err}</p>`;
+            }
+        }
+
+        async function downloadSessionFile(sessionId) {
+            const resp = await fetch(`/replay/sessions/${sessionId}`);
+            const data = await resp.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clustersync_${sessionId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function deleteSessionFile(sessionId) {
+            if (confirm(`Deseja realmente excluir a gravação ${sessionId}?`)) {
+                await fetch(`/replay/sessions/${sessionId}`, { method: 'DELETE' });
+                await refreshSessionsList();
+            }
+        }
+
+        function handleImportFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    await fetch('/replay/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(json)
+                    });
+                    await refreshSessionsList();
+                    alert("Gravação importada com sucesso!");
+                } catch (err) {
+                    alert("Arquivo JSON inválido: " + err);
                 }
+            };
+            reader.readAsText(file);
+        }
+
+        // ==============================================
+        // PLAYER DE REPLAY QUADRO A QUADRO (CLIENT-SIDE)
+        // ==============================================
+        async function loadSessionToPlayer(sessionId) {
+            closeSessionsModal();
+            try {
+                const resp = await fetch(`/replay/sessions/${sessionId}`);
+                const data = await resp.json();
+                
+                replayEvents = Array.isArray(data) ? data : (data.events || []);
+                replayInitialState = data.initial_state || null;
+                
+                if (replayEvents.length === 0) {
+                    alert("Esta sessão não contém eventos registrados.");
+                    return;
+                }
+
+                isReplayMode = true;
+                currentReplayIndex = 0;
+
+                document.getElementById('player-session-name').innerText = data.name || sessionId;
+                document.getElementById('player-bar').style.display = 'flex';
+                document.getElementById('test-controls-bar').style.display = 'none';
+
+                const slider = document.getElementById('replay-slider');
+                slider.max = replayEvents.length - 1;
+                slider.value = 0;
+
+                seekReplay(0);
+                addLog(`[REPLAY] Sessão carregada no Player (${replayEvents.length} eventos).`, "system");
             } catch (e) {
-                alert("Erro ao consultar sessões: " + e);
+                alert("Erro ao carregar sessão: " + e);
+            }
+        }
+
+        function seekReplay(targetIndex) {
+            if (replayEvents.length === 0) return;
+            targetIndex = Math.max(0, Math.min(targetIndex, replayEvents.length - 1));
+            currentReplayIndex = targetIndex;
+
+            // Restaura o estado inicial limpo da gravação
+            if (replayInitialState) {
+                const s = replayInitialState;
+                currentFathers = { ...(s.topology?.edges || {}) };
+                currentTokenHolder = s.topology?.token_holder || "node1";
+                currentNodeInCS = s.topology?.in_cs || null;
+                currentNextQueues = { ...(s.topology?.next_queues || {}) };
+                totalMessages = s.metrics?.total_messages || 0;
+                csEntries = s.metrics?.cs_entries || 0;
+                overlapCount = s.metrics?.overlap_count || 0;
+                nodeWaitTimes = { ...(s.metrics?.node_wait_times || {}) };
+            } else {
+                currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
+                currentTokenHolder = "node1";
+                currentNodeInCS = null;
+                currentNextQueues = {};
+                totalMessages = 0;
+                csEntries = 0;
+                overlapCount = 0;
+                nodeWaitTimes = {};
+            }
+
+            clearLogs();
+            timelineEvents = [];
+
+            // Executa sequencialmente até o quadro desejado
+            for (let i = 0; i <= targetIndex; i++) {
+                handleIncomingEvent(replayEvents[i]);
+            }
+
+            // Atualiza os controles do player
+            document.getElementById('replay-slider').value = targetIndex;
+            document.getElementById('replay-counter').innerText = `${targetIndex + 1} / ${replayEvents.length}`;
+        }
+
+        function stepForward() {
+            pauseReplay();
+            if (currentReplayIndex < replayEvents.length - 1) {
+                seekReplay(currentReplayIndex + 1);
+            }
+        }
+
+        function stepBackward() {
+            pauseReplay();
+            if (currentReplayIndex > 0) {
+                seekReplay(currentReplayIndex - 1);
+            }
+        }
+
+        function onSliderChange(val) {
+            pauseReplay();
+            seekReplay(parseInt(val, 10));
+        }
+
+        function onSpeedChange(val) {
+            replaySpeed = parseInt(val, 10);
+            if (replayIntervalTimer) {
+                pauseReplay();
+                playReplay();
+            }
+        }
+
+        function togglePlayPause() {
+            if (replayIntervalTimer) {
+                pauseReplay();
+            } else {
+                playReplay();
+            }
+        }
+
+        function playReplay() {
+            const btn = document.getElementById('play-pause-btn');
+            btn.innerText = "⏸️";
+            replayIntervalTimer = setInterval(() => {
+                if (currentReplayIndex < replayEvents.length - 1) {
+                    seekReplay(currentReplayIndex + 1);
+                } else {
+                    pauseReplay();
+                }
+            }, replaySpeed);
+        }
+
+        function pauseReplay() {
+            const btn = document.getElementById('play-pause-btn');
+            btn.innerText = "▶️";
+            if (replayIntervalTimer) {
+                clearInterval(replayIntervalTimer);
+                replayIntervalTimer = null;
+            }
+        }
+
+        function exitReplay() {
+            pauseReplay();
+            isReplayMode = false;
+            replayEvents = [];
+            document.getElementById('player-bar').style.display = 'none';
+            document.getElementById('test-controls-bar').style.display = 'flex';
+            addLog("[REPLAY] Modo Replay encerrado. Conectado ao cluster ao vivo.", "system");
+            
+            // Re-sincroniza o estado atual ao vivo
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send("GET_STATE");
             }
         }
 

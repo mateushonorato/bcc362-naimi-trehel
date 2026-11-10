@@ -1,13 +1,4 @@
 services:
-  dashboard:
-    build:
-      context: .
-      dockerfile: dashboard/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      PORT: "8080"
-
   observer:
     build: .
     command: ["python", "observer.py"]
@@ -148,3 +139,7 @@ services:
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
+
+networks:
+  default:
+    name: tp2-net

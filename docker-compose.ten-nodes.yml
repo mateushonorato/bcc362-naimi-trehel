@@ -133,3 +133,7 @@ services:
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node10]
+
+networks:
+  default:
+    name: tp2-net

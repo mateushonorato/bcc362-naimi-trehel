@@ -214,3 +214,201 @@ main {
     #metrics-panel { grid-column: 1; grid-row: 4; }
     #heatmap-panel { grid-column: 2; grid-row: 4; }
 }
+
+/* ==========================================================================
+   NOVOS COMPONENTES: ORQUESTRADOR DE TESTES, PLAYER E MODAL DE SESSÕES
+   ========================================================================== */
+
+/* Barra de Controle de Testes */
+.test-controls-bar {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 204, 0.25);
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.test-controls-title {
+    font-weight: bold;
+    color: #00ffcc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95em;
+}
+.test-select-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.test-select-group select, .test-select-group input {
+    background: #0f172a;
+    color: #fff;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.85em;
+}
+.manual-nodes-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.btn-node-step {
+    background: #1e293b;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+    padding: 5px 9px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+.btn-node-step:hover {
+    background: #38bdf8;
+    color: #0f172a;
+}
+.test-progress-info {
+    font-size: 0.85em;
+    color: #cbd5e1;
+    margin-left: auto;
+}
+
+/* Barra do Player Multimídia de Replay */
+.player-bar {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid #818cf8;
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    animation: slideDown 0.3s ease;
+}
+@keyframes slideDown { from { transform: translateY(-15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.player-badge {
+    background: #4f46e5;
+    color: #fff;
+    font-size: 0.8em;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+.player-buttons {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+.player-btn {
+    background: #334155;
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.2s;
+}
+.player-btn:hover { background: #475569; }
+.player-scrubber {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+}
+.player-slider {
+    flex-grow: 1;
+    cursor: pointer;
+    accent-color: #818cf8;
+}
+.player-counter {
+    font-family: monospace;
+    font-size: 0.85em;
+    color: #94a3b8;
+}
+.player-speed select {
+    background: #0f172a;
+    color: #fff;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+}
+
+/* Fila Distribuída (next) */
+.queue-box {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    font-size: 0.85em;
+    border-left: 3px solid #f97316;
+}
+.queue-box b { color: #f97316; }
+
+/* Modal de Gravações */
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+.modal-window {
+    background: #1e293b;
+    border: 1px solid #475569;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 650px;
+    max-height: 85vh;
+    overflow-y: auto;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.modal-window h3 {
+    margin-bottom: 15px;
+    color: #38bdf8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.2em;
+    cursor: pointer;
+}
+.sessions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 0.85em;
+}
+.sessions-table th, .sessions-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #334155;
+}
+.sessions-table th { color: #94a3b8; }
+.sessions-table tr:hover { background: rgba(255, 255, 255, 0.03); }
+.modal-upload-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px dashed #475569;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    margin-top: 15px;
+}
