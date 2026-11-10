@@ -4,11 +4,12 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 lock = threading.Lock()
-active_nodes = set()
+active_entries = set()  # Armazena (node_id, req_id) para detectar ate sobreposicoes no mesmo no
 total_completed = 0
 overlap_events = 0
 max_concurrent = 0
 history = []
+MAX_HISTORY = 1000
 
 class ObserverHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -25,21 +26,24 @@ class ObserverHandler(BaseHTTPRequestHandler):
 
         with lock:
             if event_type == "BEGIN":
-                active_nodes.add(node_id)
-                current_count = len(active_nodes)
+                active_entries.add((node_id, req_id))
+                current_count = len(active_entries)
                 if current_count > max_concurrent:
                     max_concurrent = current_count
+                active_nodes_list = [n for n, _ in active_entries]
                 if current_count > 1:
                     overlap_events += 1
-                    print(f"[VIOLACAO] Sobreposicao detectada! Ativos: {list(active_nodes)} | req={req_id}", flush=True)
+                    print(f"[VIOLACAO] Sobreposicao detectada! Ativos: {active_nodes_list} | req={req_id}", flush=True)
                 else:
                     print(f"[OBSERVER] BEGIN | node={node_id} | req={req_id} | ativos={current_count}", flush=True)
             elif event_type == "END":
-                active_nodes.discard(node_id)
+                active_entries.discard((node_id, req_id))
                 total_completed += 1
-                print(f"[OBSERVER] END   | node={node_id} | req={req_id} | ativos={len(active_nodes)}", flush=True)
+                print(f"[OBSERVER] END   | node={node_id} | req={req_id} | ativos={len(active_entries)}", flush=True)
 
-            history.append({"ts": ts, "event": event_type, "node": node_id, "req_id": req_id, "active": len(active_nodes)})
+            if len(history) >= MAX_HISTORY:
+                history.pop(0)
+            history.append({"ts": ts, "event": event_type, "node": node_id, "req_id": req_id, "active": len(active_entries)})
 
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -50,7 +54,7 @@ class ObserverHandler(BaseHTTPRequestHandler):
         if self.path == "/stats":
             with lock:
                 payload = {
-                    "active_now": list(active_nodes),
+                    "active_now": [n for n, _ in active_entries],
                     "total_completed": total_completed,
                     "overlap_events": overlap_events,
                     "max_concurrent": max_concurrent
@@ -59,6 +63,9 @@ class ObserverHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
+        else:
+            self.send_response(404)
+            self.end_headers()
 
 if __name__ == "__main__":
     print("[OBSERVER] Iniciando na porta 9000...", flush=True)
