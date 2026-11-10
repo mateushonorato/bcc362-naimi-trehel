@@ -709,12 +709,15 @@
         function onScenarioChange(scenario) {
             const manualGroup = document.getElementById('manual-nodes-group');
             const reqGroup = document.getElementById('req-count-group');
+            const runBtn = document.getElementById('btn-run-workload');
             if (scenario === 'step') {
                 manualGroup.style.display = 'flex';
                 reqGroup.style.display = 'none';
+                if (runBtn) runBtn.style.display = 'none';
             } else {
                 manualGroup.style.display = 'none';
                 reqGroup.style.display = 'flex';
+                if (runBtn) runBtn.style.display = 'inline-flex';
             }
         }
 
