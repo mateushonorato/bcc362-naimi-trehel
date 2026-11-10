@@ -401,14 +401,6 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 
 Os testes distribuídos foram executados em um cluster de **3 máquinas virtuais na Oracle Cloud Infrastructure (OCI)** orquestradas via **Docker Swarm**, interligadas por rede `overlay` com encapsulamento VXLAN.
 
-#### Especificações da Infraestrutura em Nuvem (OCI)
-- **Topologia de VMs:**
-  - **VM 1 (`k3s-1`, Manager):** `168.75.87.147` (IP público) — hospeda o Observador e serviços alocados
-  - **VM 2 (`k3s-2`, Worker 1):** `10.0.0.87` (VCN privada OCI, sub-rede `10.0.0.0/24`)
-  - **VM 3 (`k3s-3`, Worker 2):** `10.0.0.252` (VCN privada OCI, sub-rede `10.0.0.0/24`)
-- **Balanceamento de Contêineres:**
-  - *Cenário de 5 nós (11 contêineres):* VM 1 = 3 contêineres (`observer`, `node1`, `client1`); VM 2 = 4 contêineres (`node2`, `node3`, `client2`, `client3`); VM 3 = 4 contêineres (`node4`, `node5`, `client4`, `client5`).
-  - *Cenário de 10 nós (21 contêineres):* Distribuição perfeitamente simétrica **7 / 7 / 7** contêineres por VM via composição com `docker-stack.ten-nodes.yml`.
 
 #### Tabela Consolidada de Execuções em Nuvem (`results/metrics_results_swarm.csv`)
 
