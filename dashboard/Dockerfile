@@ -1,7 +1,8 @@
 FROM python:3.12-alpine
 WORKDIR /app
 
-RUN pip install --no-cache-dir fastapi uvicorn websockets
+RUN apk add --no-cache docker-cli docker-cli-compose && \
+    pip install --no-cache-dir fastapi uvicorn websockets
 
 COPY dashboard /app/dashboard
 

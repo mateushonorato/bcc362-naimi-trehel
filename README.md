@@ -206,13 +206,14 @@ O projeto inclui um painel web interativo e desacoplado para acompanhamento did�
   - **Árvore de Busca (`father`):** visualização em tempo real da inversão dos ponteiros direcionados ao último requerente.
   - **Fila FIFO Distribuída (`next`):** arestas pontilhadas laranjas e painel dedicado exibindo a fila de nós que aguardam a passagem do token.
   - **Posse do Token (`has_token`) e Seção Crítica:** destaque visual do portador do token (coroa 👑) e do nó em execução na SC (raio ⚡).
-- **Orquestrador de Cenários Integrado (Disparo sem Terminal):**
-  Permite selecionar e disparar cargas diretamente pela interface web:
-  - *Carga Normal (5 nós, intervalos de 1–5s)*
-  - *Alta Contenção (5 nós, disputa imediata com intervalo 0s)*
-  - *Carga Desigual (Localidade: nós 1 e 2 prioritários)*
-  - *Escala Ampliada (10 nós)*
-  - *Passo a Passo Manual (Disparo unitário de nó individual para explicação didática)*
+- **Orquestrador de Cenários & Escala Ortogonal (5 ou 10 Nós):**
+  Permite selecionar a escala do cluster (**5 Nós** ou **10 Nós**) e combiná-la com qualquer um dos cenários do relatório acadêmico:
+  - *📊 Carga Normal (intervalos de 1–5s)*
+  - *⚡ Alta Contenção (disputa imediata com intervalo 0s)*
+  - *🎯 Carga Desigual / Localidade (nós 1 e 2 concentram requisições)*
+  - *⚠️ Prova de Instrumentação (Sync OFF):* desativa dinamicamente o mutex distribuído nos nós via endpoint `/sync/set` em runtime; gera acessos concorrentes deliberados, o observador detecta sobreposições (`overlap: true`) e o dashboard exibe um alerta vermelho em destaque comprovando o funcionamento da instrumentação passiva. A sincronização é automaticamente restaurada ao término.
+  - *👆 Passo a Passo Manual (Disparo Unitário ou Disputa Concorrente Didática).*
+  - **Orquestração Dinâmica via Docker Socket:** ao alternar entre 5 e 10 nós, o backend do dashboard automaticamente sobe ou para os contêineres `node6..node10` através do socket `/var/run/docker.sock`, reconfigurando a topologia instantaneamente.
 - **Player de Replay Quadro a Quadro (Step-by-Step):**
   Controle multimídia client-side (`[⏮️ Início]`, `[◀️ Passo Anterior]`, `[⏯️ Play/Pause]`, `[▶️ Próximo Passo]`, `[⏭️ Fim]`, scrubber de eventos e seletor de velocidade `0.5x/1x/2.5x`) para congelar e analisar minuciosamente cada reversão de ponteiro.
 - **Gerenciador de Gravações & Demonstrações:**

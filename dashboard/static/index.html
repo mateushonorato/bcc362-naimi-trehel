@@ -79,29 +79,31 @@
         <div class="test-controls-title">🎮 Orquestrador de Carga:</div>
         
         <div class="test-select-group">
+            <label for="scale-select" style="font-size: 0.85em; color: #aaa;">Escala:</label>
+            <select id="scale-select" onchange="onScaleChange(this.value)">
+                <option value="5" selected>5 Nós (node1 a node5)</option>
+                <option value="10">10 Nós (node1 a node10)</option>
+            </select>
+        </div>
+
+        <div class="test-select-group">
             <label for="scenario-select" style="font-size: 0.85em; color: #aaa;">Cenário:</label>
             <select id="scenario-select" onchange="onScenarioChange(this.value)">
-                <option value="normal">Carga Normal (5 nós, 1–5s)</option>
-                <option value="contention">Alta Contenção (5 nós, 0s)</option>
-                <option value="skewed">Carga Desigual (Localidade: nós 1 e 2)</option>
-                <option value="ten-nodes">Escala Ampliada (10 nós)</option>
-                <option value="step">Passo a Passo Manual (Disparo Unitário)</option>
+                <option value="normal" selected>📊 Carga Normal (1–5s)</option>
+                <option value="contention">⚡ Alta Contenção (0s)</option>
+                <option value="skewed">🎯 Carga Desigual / Localidade</option>
+                <option value="disabled">⚠️ Prova de Instrumentação (Sync OFF)</option>
+                <option value="step">👆 Passo a Passo Manual (Disparo Unitário)</option>
             </select>
         </div>
 
         <div class="test-select-group" id="req-count-group">
             <label for="req-count" style="font-size: 0.85em; color: #aaa;">Reqs/nó:</label>
-            <input type="number" id="req-count" min="1" max="50" value="5" style="width: 55px;">
+            <input type="number" id="req-count" min="1" max="50" value="10" style="width: 55px;">
         </div>
 
         <div class="manual-nodes-group" id="manual-nodes-group" style="display: none;">
-            <button class="btn-node-step" onclick="triggerManualStep('node1')">⚡ Nó 1</button>
-            <button class="btn-node-step" onclick="triggerManualStep('node2')">⚡ Nó 2</button>
-            <button class="btn-node-step" onclick="triggerManualStep('node3')">⚡ Nó 3</button>
-            <button class="btn-node-step" onclick="triggerManualStep('node4')">⚡ Nó 4</button>
-            <button class="btn-node-step" onclick="triggerManualStep('node5')">⚡ Nó 5</button>
-            <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nó 3 e Nó 5 (Gera Fila FIFO)</button>
-            <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
+            <!-- Gerado dinamicamente via renderManualButtons(currentScale) -->
         </div>
 
         <button class="btn-success" id="btn-run-workload" onclick="toggleWorkload()">▶️ Iniciar Teste</button>
@@ -110,6 +112,12 @@
             Status: <b id="workload-status-text" style="color: #00ffcc;">Pronto</b>
             &nbsp;|&nbsp; Progresso: <b id="workload-progress-text">0 / 0</b>
         </div>
+    </div>
+
+    <!-- BANNER DE ALERTA DE VIOLAÇÃO DE EXCLUSÃO MÚTUA (PROVA DE INSTRUMENTAÇÃO) -->
+    <div id="violation-banner" class="violation-alert" style="display: none;">
+        <span>🚨 <b>Violação de Exclusão Mútua Detectada!</b> Múltiplos processos entraram simultaneamente na Seção Crítica (Sincronização Desabilitada).</span>
+        <button style="margin-left: auto; background: none; border: none; color: white; cursor: pointer; font-size: 1.1em;" onclick="document.getElementById('violation-banner').style.display='none'">✖</button>
     </div>
 
     <main>
@@ -253,6 +261,7 @@
         let csEntries = 0;
         let overlapCount = 0;
         let isRecording = false;
+        let currentScale = 5;
 
         // Topologia Naimi-Tréhel
         let currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
@@ -306,7 +315,11 @@
 
             try {
                 let code = "graph TD\n";
-                const sortedNodes = Array.from(knownNodes).sort();
+                const sortedNodes = Array.from(knownNodes).sort((a,b) => {
+                    const na = parseInt(a.replace('node',''), 10) || 0;
+                    const nb = parseInt(b.replace('node',''), 10) || 0;
+                    return na - nb;
+                });
 
                 sortedNodes.forEach(nodeId => {
                     let label = nodeId;
@@ -419,8 +432,25 @@
         // PROCESSAMENTO DE EVENTOS RECEBIDOS
         // ==============================================
         function handleIncomingEvent(data) {
+            if (data.type === 'SCALE_CHANGED') {
+                currentScale = data.scale;
+                const scEl = document.getElementById('scale-select');
+                if (scEl) scEl.value = String(currentScale);
+                renderManualButtons(currentScale);
+                if (data.state) {
+                    handleIncomingEvent({ type: 'INIT', state: data.state, scale: data.scale });
+                }
+                return;
+            }
+
             // Evento INIT ou RESET
             if ((data.type === 'INIT' || data.type === 'RESET') && data.state) {
+                if (data.scale !== undefined) {
+                    currentScale = data.scale;
+                    const scEl = document.getElementById('scale-select');
+                    if (scEl) scEl.value = String(currentScale);
+                    renderManualButtons(currentScale);
+                }
                 const s = data.state;
                 if (s.topology) {
                     currentFathers = { ...(s.topology.edges || {}) };
@@ -440,6 +470,9 @@
                     document.getElementById('cs-entries').innerText = csEntries;
                     document.getElementById('cs-entries-stat').innerText = csEntries;
                     document.getElementById('overlap-stat').innerText = overlapCount;
+                    if (overlapCount > 0) {
+                        document.getElementById('overlap-stat').style.color = '#e74c3c';
+                    }
                 }
                 if (data.workload) {
                     updateWorkloadUI(data.workload);
@@ -452,6 +485,10 @@
                     });
                 } else if (data.type === 'RESET') {
                     clearLogs();
+                    const banner = document.getElementById('violation-banner');
+                    if (banner) banner.style.display = 'none';
+                    const ovStat = document.getElementById('overlap-stat');
+                    if (ovStat) ovStat.style.color = '#2ecc71';
                 }
                 if (s.recent_timeline && s.recent_timeline.length > 0) {
                     timelineEvents = s.recent_timeline.slice().reverse();
@@ -565,8 +602,13 @@
                 }
                 if (data.overlap) {
                     overlapCount++;
-                    document.getElementById('overlap-stat').innerText = overlapCount;
-                    document.getElementById('overlap-stat').style.color = '#e74c3c';
+                    const ovStat = document.getElementById('overlap-stat');
+                    if (ovStat) {
+                        ovStat.innerText = overlapCount;
+                        ovStat.style.color = '#e74c3c';
+                    }
+                    const banner = document.getElementById('violation-banner');
+                    if (banner) banner.style.display = 'flex';
                 }
             }
 
@@ -650,7 +692,11 @@
         function renderNodes() {
             const now = Date.now();
             const container = document.getElementById('nodes-container');
-            const sortedNodes = Array.from(knownNodes).sort();
+            const sortedNodes = Array.from(knownNodes).sort((a,b) => {
+                const na = parseInt(a.replace('node',''), 10) || 0;
+                const nb = parseInt(b.replace('node',''), 10) || 0;
+                return na - nb;
+            });
 
             const html = sortedNodes.map(nodeId => {
                 const lastTime = nodeHeartbeats[nodeId] || 0;
@@ -706,6 +752,49 @@
         // ==============================================
         // CONTROLE DE CARGA E CENÁRIOS DE TESTE
         // ==============================================
+        function renderManualButtons(scale) {
+            const group = document.getElementById('manual-nodes-group');
+            if (!group) return;
+            let html = '';
+            for (let i = 1; i <= scale; i++) {
+                html += `<button class="btn-node-step" onclick="triggerManualStep('node${i}')">⚡ Nó ${i}</button> `;
+            }
+            if (scale === 10) {
+                html += `
+                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node8'])">⚡ Disputar Nós 3 e 8 (Fila FIFO)</button>
+                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node6', 'node10'])">⚡ Disputar Nós 2, 6 e 10 (Fila 3 nós)</button>
+                `;
+            } else {
+                html += `
+                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nós 3 e 5 (Gera Fila FIFO)</button>
+                    <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
+                `;
+            }
+            group.innerHTML = html;
+        }
+
+        async function onScaleChange(scaleVal) {
+            const scale = parseInt(scaleVal, 10);
+            currentScale = scale;
+            renderManualButtons(scale);
+            addLog(`[ESCALA] Reconfigurando cluster para ${scale} nós...`, "system");
+            try {
+                const resp = await fetch('/api/cluster/scale', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scale })
+                });
+                const d = await resp.json();
+                if (d && d.state) {
+                    handleIncomingEvent({ type: 'INIT', state: d.state, scale });
+                }
+                addLog(`[ESCALA] Cluster com ${scale} nós ativo com sucesso.`, "system");
+            } catch (e) {
+                console.error("Erro ao alterar escala:", e);
+                addLog(`[ERRO] Falha ao reconfigurar escala: ${e}`, "system");
+            }
+        }
+
         function onScenarioChange(scenario) {
             const manualGroup = document.getElementById('manual-nodes-group');
             const reqGroup = document.getElementById('req-count-group');
@@ -725,12 +814,18 @@
             const btn = document.getElementById('btn-run-workload');
             if (!isWorkloadRunning) {
                 const scenario = document.getElementById('scenario-select').value;
+                const scale = parseInt(document.getElementById('scale-select').value, 10) || currentScale;
                 const numReqs = parseInt(document.getElementById('req-count').value, 10) || 5;
+
+                if (scenario !== 'disabled') {
+                    const banner = document.getElementById('violation-banner');
+                    if (banner) banner.style.display = 'none';
+                }
 
                 const resp = await fetch('/api/workload/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ scenario, num_requests: numReqs })
+                    body: JSON.stringify({ scenario, scale, num_requests: numReqs })
                 });
                 const d = await resp.json();
                 if (resp.ok) {
@@ -752,7 +847,7 @@
             await fetch('/api/workload/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scenario: 'step', node_id: nodeId })
+                body: JSON.stringify({ scenario: 'step', scale: currentScale, node_id: nodeId })
             });
         }
 
@@ -760,7 +855,7 @@
             await fetch('/api/workload/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scenario: 'step', nodes: nodes })
+                body: JSON.stringify({ scenario: 'step', scale: currentScale, nodes: nodes })
             });
         }
 
@@ -1066,6 +1161,7 @@
 
         // Inicialização imediata ao carregar a página
         window.addEventListener('DOMContentLoaded', () => {
+            renderManualButtons(currentScale);
             renderTopology();
             connectWS();
         });

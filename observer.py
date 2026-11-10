@@ -77,6 +77,19 @@ class ObserverHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         global total_completed, overlap_events, max_concurrent
 
+        if self.path == "/reset":
+            with lock:
+                active_entries.clear()
+                total_completed = 0
+                overlap_events = 0
+                max_concurrent = 0
+                history.clear()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+            return
+
         length     = int(self.headers.get("Content-Length", 0))
         data       = json.loads(self.rfile.read(length).decode("utf-8"))
         event_type = data["event"]       # "BEGIN" ou "END"

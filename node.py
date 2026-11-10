@@ -496,6 +496,35 @@ class NodeHandler(BaseHTTPRequestHandler):
             # Mensagem de TOKEN: entrega a autorização ao nó solicitante
             node.on_receive_token(data["from"], data["request_id"])
             resp = {"status": "OK"}
+        elif self.path == "/sync/set":
+            # Endpoint para habilitar/desabilitar sincronização dinamicamente (Prova de Instrumentação)
+            global SYNC_ENABLED
+            SYNC_ENABLED = bool(data.get("enabled", True))
+            print(f"[SYNC_SET] node={NODE_ID} | sync_enabled={SYNC_ENABLED}", flush=True)
+            resp = {"status": "OK", "node_id": NODE_ID, "sync_enabled": SYNC_ENABLED}
+        elif self.path == "/reset":
+            # Endpoint para redefinir o estado distribuído ao valor inicial
+            with node.state_lock:
+                node.father = None if NODE_ID == "node1" else "node1"
+                node.has_token = (NODE_ID == "node1")
+                if node.has_token:
+                    node.token_event.set()
+                else:
+                    node.token_event.clear()
+                node.next_queue = []
+                node.requesting = False
+                node.protocol_msgs_sent = 0
+                node.acquisitions = 0
+                node.wait_times_ms.clear()
+            for q in node.send_queues.values():
+                while not q.empty():
+                    try:
+                        q.get_nowait()
+                        q.task_done()
+                    except Exception:
+                        break
+            print(f"[RESET] node={NODE_ID} | father={node.father} | has_token={node.has_token}", flush=True)
+            resp = {"status": "OK", "node_id": NODE_ID, "has_token": node.has_token, "father": node.father}
         else:
             self.send_response(404)
             self.end_headers()
@@ -521,7 +550,8 @@ class NodeHandler(BaseHTTPRequestHandler):
                     "has_token":           node.has_token,
                     "protocol_msgs_sent":  node.protocol_msgs_sent,
                     "acquisitions":        node.acquisitions,
-                    "median_wait_ms":      round(median_wait, 2)
+                    "median_wait_ms":      round(median_wait, 2),
+                    "sync_enabled":        SYNC_ENABLED
                 }
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 import random
+import subprocess
 import urllib.request
 from datetime import datetime
 
@@ -31,6 +32,89 @@ app.mount("/static", StaticFiles(directory="dashboard/static"), name="static")
 
 SESSIONS_DIR = "dashboard/sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+# ---------------------------------------------------------------------------
+# Escala ativa do cluster (5 ou 10 nós)
+# ---------------------------------------------------------------------------
+current_scale = 5
+
+
+def set_cluster_scale_containers(scale: int):
+    """Sobe ou para contêineres node6..node10 via Docker Compose."""
+    host_project_dir = os.environ.get("HOST_PROJECT_DIR", "/home/mateus/dev/sd2")
+    compose_f1 = "/app/docker-compose.yml" if os.path.exists("/app/docker-compose.yml") else "docker-compose.yml"
+    compose_f2 = "/app/docker-compose.ten-nodes.yml" if os.path.exists("/app/docker-compose.ten-nodes.yml") else "docker-compose.ten-nodes.yml"
+    proj_dir_arg = f"--project-directory {host_project_dir}" if os.environ.get("RUNNING_IN_DOCKER") else ""
+
+    if scale == 10:
+        cmd = f"docker compose -f {compose_f1} -f {compose_f2} {proj_dir_arg} up -d node6 node7 node8 node9 node10"
+    else:
+        cmd = f"docker compose -f {compose_f1} -f {compose_f2} {proj_dir_arg} stop -t 1 node6 node7 node8 node9 node10"
+
+    print(f"[SCALE] Executing: {cmd}", flush=True)
+    res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if res.returncode != 0:
+        print(f"[SCALE ERROR] {res.stderr}", flush=True)
+    else:
+        print(f"[SCALE SUCCESS] Cluster scale set to {scale} nodes.", flush=True)
+
+
+def sync_cluster_topology_scale(scale: int):
+    """Sincroniza os nós conhecidos e arestas no estado do dashboard."""
+    global cluster_state
+    if scale == 10:
+        cluster_state["topology"]["known_nodes"] = [f"node{i}" for i in range(1, 11)]
+        for i in range(6, 11):
+            n_id = f"node{i}"
+            if n_id not in cluster_state["topology"]["edges"]:
+                cluster_state["topology"]["edges"][n_id] = "node1"
+    else:
+        cluster_state["topology"]["known_nodes"] = [f"node{i}" for i in range(1, 6)]
+        for i in range(6, 11):
+            n_id = f"node{i}"
+            cluster_state["topology"]["edges"].pop(n_id, None)
+            cluster_state["topology"]["next_queues"].pop(n_id, None)
+            cluster_state["metrics"]["node_wait_times"].pop(n_id, None)
+
+        # Se algum nó remanescente apontava para nós desligados, reconecta à raiz
+        for i in range(1, 6):
+            n_id = f"node{i}"
+            f = cluster_state["topology"]["edges"].get(n_id)
+            if f and f in [f"node{k}" for k in range(6, 11)]:
+                cluster_state["topology"]["edges"][n_id] = "node1" if n_id != "node1" else None
+
+        if cluster_state["topology"]["token_holder"] in [f"node{k}" for k in range(6, 11)]:
+            cluster_state["topology"]["token_holder"] = "node1"
+
+    # Reseta os nós e o observer para estado consistente
+    reset_nodes_and_observer(scale)
+
+
+def reset_nodes_and_observer(scale: int):
+    """Envia requisição /reset aos nós ativos e ao observador passivo."""
+    nodes = [f"node{i}" for i in range(1, scale + 1)]
+    for node_id in nodes:
+        url = resolve_node_url(node_id)
+        try:
+            _send_sync_request(f"{url}/reset", b"{}", timeout=2.0)
+        except Exception:
+            pass
+    obs_url = os.environ.get("OBSERVER_URL", "http://observer:9000")
+    try:
+        _send_sync_request(f"{obs_url}/reset", b"{}", timeout=2.0)
+    except Exception:
+        pass
+
+
+def set_nodes_sync_enabled(nodes: list, enabled: bool):
+    """Habilita ou desabilita o algoritmo de sincronização nos nós (Prova de Instrumentação)."""
+    for node_id in nodes:
+        url = resolve_node_url(node_id)
+        try:
+            body = json.dumps({"enabled": enabled}).encode("utf-8")
+            _send_sync_request(f"{url}/sync/set", body, timeout=2.0)
+        except Exception as e:
+            print(f"[WARN] Failed to set sync on {node_id}: {e}", flush=True)
 
 # ---------------------------------------------------------------------------
 # Estado global consolidado mantido em memória
@@ -59,9 +143,13 @@ def update_cluster_state(body: dict):
     sender = body.get("node_id") or body.get("node")
 
     if sender and sender.startswith("node"):
-        if sender not in cluster_state["topology"]["known_nodes"]:
-            cluster_state["topology"]["known_nodes"].append(sender)
-            cluster_state["topology"]["known_nodes"].sort()
+        try:
+            num = int(sender.replace("node", ""))
+            if num <= current_scale and sender not in cluster_state["topology"]["known_nodes"]:
+                cluster_state["topology"]["known_nodes"].append(sender)
+                cluster_state["topology"]["known_nodes"].sort(key=lambda x: int(x.replace("node", "")))
+        except ValueError:
+            pass
 
     cluster_state["metrics"]["total_messages"] += 1
 
@@ -259,7 +347,8 @@ async def websocket_endpoint(ws: WebSocket):
     await ws.send_text(json.dumps({
         "type": "INIT",
         "state": cluster_state,
-        "workload": workload_status
+        "workload": workload_status,
+        "scale": current_scale
     }))
     try:
         while True:
@@ -275,17 +364,49 @@ async def root():
 
 
 # ---------------------------------------------------------------------------
+# Endpoints de Topologia e Escala Dinâmica (5 ou 10 Nós)
+# ---------------------------------------------------------------------------
+@app.post("/api/cluster/scale")
+async def change_scale(request: Request):
+    global current_scale
+    body = await request.json()
+    scale = int(body.get("scale", 5))
+    if scale not in [5, 10]:
+        return JSONResponse(status_code=400, content={"error": "Escala inválida (use 5 ou 10)"})
+
+    current_scale = scale
+    await asyncio.to_thread(set_cluster_scale_containers, scale)
+    sync_cluster_topology_scale(scale)
+
+    await manager.broadcast({
+        "type": "SCALE_CHANGED",
+        "scale": scale,
+        "state": cluster_state
+    })
+    return {"status": "ok", "scale": scale, "state": cluster_state}
+
+
+# ---------------------------------------------------------------------------
 # Endpoints de Controle de Testes (Workload)
 # ---------------------------------------------------------------------------
 @app.post("/api/workload/start")
 async def start_workload(request: Request):
-    global workload_tasks, workload_status
+    global workload_tasks, workload_status, current_scale
     if workload_status["running"]:
         return JSONResponse(status_code=400, content={"error": "Um teste já está em execução."})
 
     body = await request.json()
     scenario = body.get("scenario", "normal")
+    scale = int(body.get("scale", current_scale))
     num_reqs = int(body.get("num_requests", 5))
+
+    # Sincroniza a escala se o usuário alterou
+    if scale != current_scale:
+        current_scale = scale
+        await asyncio.to_thread(set_cluster_scale_containers, scale)
+        sync_cluster_topology_scale(scale)
+
+    nodes = [f"node{i}" for i in range(1, scale + 1)]
 
     workload_tasks.clear()
     workload_status["running"] = True
@@ -300,18 +421,25 @@ async def start_workload(request: Request):
             t = asyncio.create_task(run_node_workload(target, f"demo-{target}", 1, 0, 0))
             workload_tasks.append(t)
 
-    elif scenario == "contention":
-        nodes = ["node1", "node2", "node3", "node4", "node5"]
+    elif scenario == "disabled":
+        # Prova de Instrumentação: Desativa a sincronização distribuída nos nós
+        await asyncio.to_thread(set_nodes_sync_enabled, nodes, False)
         workload_status["total"] = len(nodes) * num_reqs
-        workload_status["message"] = f"Alta Contenção ({len(nodes)} nós, {num_reqs} reqs, sleep=0s)"
+        workload_status["message"] = f"⚠️ Prova de Instrumentação (Sync OFF, {len(nodes)} nós, {num_reqs} reqs/nó)"
         for n in nodes:
-            t = asyncio.create_task(run_node_workload(n, f"contention-{n}", num_reqs, 0.0, 0.1))
+            t = asyncio.create_task(run_node_workload(n, f"disabled-{n}", num_reqs, 0.0, 0.0))
+            workload_tasks.append(t)
+
+    elif scenario == "contention":
+        workload_status["total"] = len(nodes) * num_reqs
+        workload_status["message"] = f"Alta Contenção ({len(nodes)} nós, {num_reqs} reqs/nó, sleep=0s)"
+        for n in nodes:
+            t = asyncio.create_task(run_node_workload(n, f"contention-{n}", num_reqs, 0.0, 0.05))
             workload_tasks.append(t)
 
     elif scenario == "skewed":
-        nodes = ["node1", "node2", "node3", "node4", "node5"]
         workload_status["total"] = len(nodes) * num_reqs
-        workload_status["message"] = "Carga Desigual (Localidade: nós 1 e 2 prioritários)"
+        workload_status["message"] = f"Carga Desigual / Localidade ({len(nodes)} nós, nós 1 e 2 prioritários)"
         for n in nodes:
             if n in ["node1", "node2"]:
                 t = asyncio.create_task(run_node_workload(n, f"skewed-{n}", num_reqs, 0.1, 0.3))
@@ -319,18 +447,9 @@ async def start_workload(request: Request):
                 t = asyncio.create_task(run_node_workload(n, f"skewed-{n}", num_reqs, 2.0, 4.0))
             workload_tasks.append(t)
 
-    elif scenario == "ten-nodes":
-        nodes = [f"node{i}" for i in range(1, 11)]
-        workload_status["total"] = len(nodes) * num_reqs
-        workload_status["message"] = f"Escala Ampliada (10 nós, {num_reqs} reqs)"
-        for n in nodes:
-            t = asyncio.create_task(run_node_workload(n, f"ten-{n}", num_reqs, 1.0, 3.0))
-            workload_tasks.append(t)
-
     else:  # "normal"
-        nodes = ["node1", "node2", "node3", "node4", "node5"]
         workload_status["total"] = len(nodes) * num_reqs
-        workload_status["message"] = f"Carga Normal ({len(nodes)} nós, {num_reqs} reqs, sleep=1-5s)"
+        workload_status["message"] = f"Carga Normal ({len(nodes)} nós, {num_reqs} reqs/nó, sleep=1–5s)"
         for n in nodes:
             t = asyncio.create_task(run_node_workload(n, f"normal-{n}", num_reqs, 1.0, 5.0))
             workload_tasks.append(t)
@@ -343,12 +462,15 @@ async def start_workload(request: Request):
         except asyncio.CancelledError:
             pass
         finally:
+            if scenario == "disabled":
+                # Sempre restaura a sincronização distribuída ao término da prova
+                await asyncio.to_thread(set_nodes_sync_enabled, nodes, True)
             workload_status["running"] = False
             workload_status["message"] = f"Teste '{scenario}' finalizado."
             await manager.broadcast({"type": "WORKLOAD_DONE", "status": workload_status})
 
     asyncio.create_task(_monitor_completion())
-    return {"status": "started", "scenario": scenario, "total": workload_status["total"]}
+    return {"status": "started", "scenario": scenario, "scale": scale, "total": workload_status["total"]}
 
 
 @app.post("/api/workload/stop")
@@ -357,6 +479,9 @@ async def stop_workload():
     for t in workload_tasks:
         t.cancel()
     workload_tasks.clear()
+    # Garante restauração da sincronização caso o teste estivesse em modo disabled
+    nodes = [f"node{i}" for i in range(1, current_scale + 1)]
+    await asyncio.to_thread(set_nodes_sync_enabled, nodes, True)
     workload_status["message"] = "Teste abortado pelo usuário."
     await manager.broadcast({"type": "WORKLOAD_DONE", "status": workload_status})
     return {"status": "stopped"}
@@ -370,6 +495,11 @@ async def get_workload_status():
 @app.post("/api/reset")
 async def reset_metrics():
     global cluster_state
+    # Restaura sincronização e estado inicial nos nós ativos
+    active_nodes = [f"node{i}" for i in range(1, current_scale + 1)]
+    await asyncio.to_thread(set_nodes_sync_enabled, active_nodes, True)
+    await asyncio.to_thread(reset_nodes_and_observer, current_scale)
+
     cluster_state["metrics"] = {
         "total_messages": 0,
         "cs_entries": 0,
@@ -380,6 +510,10 @@ async def reset_metrics():
     cluster_state["recent_timeline"] = []
     cluster_state["topology"]["next_queues"] = {}
     cluster_state["topology"]["in_cs"] = None
+    cluster_state["topology"]["token_holder"] = "node1"
+    cluster_state["topology"]["edges"] = {
+        f"node{i}": "node1" for i in range(2, current_scale + 1)
+    }
     await manager.broadcast({"type": "RESET", "state": cluster_state})
     return {"status": "ok", "state": cluster_state}
 
