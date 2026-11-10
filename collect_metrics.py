@@ -138,12 +138,10 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
         "CLIENT_MIN_SLEEP": str(client_min),
         "CLIENT_MAX_SLEEP": str(client_max),
         "RANDOM_SEED": str(seed),
-        "CLIENT_TIMEOUT": "300.0"
+        "CLIENT_TIMEOUT": "300.0",
+        "CLIENT1_MIN_SLEEP": str(client1_min if client1_min is not None else client_min),
+        "CLIENT1_MAX_SLEEP": str(client1_max if client1_max is not None else client_max),
     }
-    if client1_min is not None:
-        env_vars["CLIENT1_MIN_SLEEP"] = str(client1_min)
-    if client1_max is not None:
-        env_vars["CLIENT1_MAX_SLEEP"] = str(client1_max)
 
     print("\n" + "="*80)
     print(f"EXPOSIÇÃO: {exp_name.upper()} | NÓS: {nodes} | REPETIÇÃO: {rep_idx} | SEMENTE: {seed} | SYNC: {sync_enabled}")
