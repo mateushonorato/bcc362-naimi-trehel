@@ -362,48 +362,94 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 
 ### 7.5. Resultados em Nuvem (Docker Swarm — Oracle Cloud Infrastructure)
 
-> [!NOTE]
-> Esta subseção está estruturada e parametrizada para receber os resultados empíricos obtidos na execução distribuída entre as 3 máquinas virtuais na **Oracle Cloud Infrastructure (OCI)**.
+Os testes distribuídos foram executados em um cluster de **3 máquinas virtuais na Oracle Cloud Infrastructure (OCI)** orquestradas via **Docker Swarm**, interligadas por rede `overlay` com encapsulamento VXLAN.
 
-#### Instruções para Coleta na Nuvem
-Conecte-se via SSH à **VM 1 (Manager)** e execute a automação com a flag `--mode swarm`:
-```bash
-# Executar a bateria completa de experimentos nas 3 VMs OCI:
-python3 collect_metrics.py --mode swarm --nodes both --experiments all --repetitions 3 --requests 10
-```
+#### Especificações da Infraestrutura em Nuvem (OCI)
+- **Topologia de VMs:**
+  - **VM 1 (`k3s-1`, Manager):** `168.75.87.147` (IP público) — hospeda o Observador e serviços alocados
+  - **VM 2 (`k3s-2`, Worker 1):** `10.0.0.87` (VCN privada OCI, sub-rede `10.0.0.0/24`)
+  - **VM 3 (`k3s-3`, Worker 2):** `10.0.0.252` (VCN privada OCI, sub-rede `10.0.0.0/24`)
+- **Balanceamento de Contêineres:**
+  - *Cenário de 5 nós (11 contêineres):* VM 1 = 3 contêineres (`observer`, `node1`, `client1`); VM 2 = 4 contêineres (`node2`, `node3`, `client2`, `client3`); VM 3 = 4 contêineres (`node4`, `node5`, `client4`, `client5`).
+  - *Cenário de 10 nós (21 contêineres):* Distribuição perfeitamente simétrica **7 / 7 / 7** contêineres por VM via composição com `docker-stack-10nodes.yml`.
 
-#### Tabela de Resultados em Nuvem (OCI — 3 VMs)
-
-*Preencha a tabela abaixo com os dados gerados em `metrics_results.csv` após a execução na nuvem:*
+#### Tabela Consolidada de Execuções em Nuvem (`metrics_results.csv`)
 
 | Experimento | Topologia | Rep. | Semente | Reqs/Cliente | Total Concluído | Violações de Mutex | Máx. Concorrente | Tempo Total (s) | Mensagens Protocolo | Mensagens / Entrada | Espera Mediana (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **disabled_sync** | 5 nós | 1 | 52 | 10 | *a preencher* | *a preencher* | *a preencher* | *a preencher* | 0 | 0.00 | *a preencher* |
-| **disabled_sync** | 10 nós | 1 | 52 | 10 | *a preencher* | *a preencher* | *a preencher* | *a preencher* | 0 | 0.00 | *a preencher* |
-| **normal_contention** | 5 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **normal_contention** | 5 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **normal_contention** | 5 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **normal_contention** | 10 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **normal_contention** | 10 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **normal_contention** | 10 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 5 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 5 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 5 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 10 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 10 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **high_contention** | 10 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 5 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 5 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 5 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 10 nós | 1 | 52 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 10 nós | 2 | 62 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
-| **unequal_load** | 10 nós | 3 | 72 | 10 | *a preencher* | 0 | 1 | *a preencher* | *a preencher* | *a preencher* | *a preencher* |
+| **disabled_sync** | 5 nós | 1 | 52 | 10 | 50 | **44** | **4** | 10.03 | 0 | 0.00 | 0.00 |
+| **normal_contention** | 5 nós | 1 | 52 | 10 | 50 | **0** | **1** | 42.13 | 143 | 2.86 | 462.19 |
+| **normal_contention** | 5 nós | 2 | 62 | 10 | 50 | **0** | **1** | 39.10 | 146 | 2.92 | 224.70 |
+| **normal_contention** | 5 nós | 3 | 72 | 10 | 50 | **0** | **1** | 41.12 | 140 | 2.80 | 387.39 |
+| **high_contention** | 5 nós | 1 | 52 | 10 | 50 | **0** | **1** | 30.09 | 155 | 3.10 | 2171.97 |
+| **high_contention** | 5 nós | 2 | 62 | 10 | 50 | **0** | **1** | 31.09 | 156 | 3.12 | 2443.82 |
+| **high_contention** | 5 nós | 3 | 72 | 10 | 50 | **0** | **1** | 33.09 | 159 | 3.18 | 2540.62 |
+| **unequal_load** | 5 nós | 1 | 52 | 10 | 50 | **0** | **1** | 40.10 | 125 | 2.50 | 329.71 |
+| **unequal_load** | 5 nós | 2 | 62 | 10 | 50 | **0** | **1** | 42.12 | 110 | 2.20 | 11.65 |
+| **unequal_load** | 5 nós | 3 | 72 | 10 | 50 | **0** | **1** | 41.12 | 125 | 2.50 | 375.88 |
+| **disabled_sync** | 10 nós | 1 | 52 | 10 | 100 | **99** | **10** | 9.03 | 0 | 0.00 | 0.00 |
+| **normal_contention** | 10 nós | 1 | 52 | 10 | 100 | **0** | **1** | 61.17 | 344 | 3.44 | 2466.17 |
+| **normal_contention** | 10 nós | 2 | 62 | 10 | 100 | **0** | **1** | 68.20 | 363 | 3.63 | 2485.48 |
+| **normal_contention** | 10 nós | 3 | 72 | 10 | 100 | **0** | **1** | 60.16 | 334 | 3.34 | 2387.87 |
+| **high_contention** | 10 nós | 1 | 52 | 10 | 100 | **0** | **1** | 61.17 | 336 | 3.36 | 5627.83 |
+| **high_contention** | 10 nós | 2 | 62 | 10 | 100 | **0** | **1** | 60.18 | 359 | 3.59 | 5669.23 |
+| **high_contention** | 10 nós | 3 | 72 | 10 | 100 | **0** | **1** | 66.19 | 363 | 3.63 | 5815.28 |
+| **unequal_load** | 10 nós | 1 | 52 | 10 | 100 | **0** | **1** | 62.17 | 351 | 3.51 | 2756.36 |
+| **unequal_load** | 10 nós | 2 | 62 | 10 | 100 | **0** | **1** | 65.18 | 356 | 3.56 | 2628.83 |
+| **unequal_load** | 10 nós | 3 | 72 | 10 | 100 | **0** | **1** | 66.19 | 357 | 3.57 | 3000.56 |
 
-#### Roteiro de Comparação Local vs. Nuvem
-Ao preencher os resultados em nuvem, avalie os seguintes pontos no relatório final e apresentação:
-1. **Impacto do RTT de Rede Real:** No ambiente local, as mensagens trafegam pela ponte virtual do Docker (`docker0`), com latência na faixa de microssegundos. Na nuvem, pacotes transitam pela rede física da OCI e pelo túnel VXLAN da rede `overlay`, elevando a latência de trânsito para milissegundos.
-2. **Invariância do Tráfego de Mensagens:** Como a lógica do algoritmo é estritamente discreta, a quantidade de mensagens de protocolo por entrada deve manter-se estatisticamente idêntica à do teste local ($\approx 2{,}86$ para 5 nós e $\approx 3{,}53$ para 10 nós).
-3. **Aumento no Tempo Total e Espera Mediana:** O tempo de espera mediano deve sofrer um acréscimo proporcional a $k \times \text{RTT}$, demonstrando empiricamente o custo de comunicação sobre redes geograficamente dispersas.
+#### Resumo Comparativo das Médias em Nuvem
+
+| Cenário de Teste | Topologia | Violações de Mutex | Máx. Concorrente | Tempo Médio Total (s) | Mensagens Médias por Entrada | Espera Mediana Média (ms) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Prova de Instrumentação** | 5 nós | **44** | **4** | 10.03 s | **0.00** | 0.00 ms |
+| **Prova de Instrumentação** | 10 nós | **99** | **10** | 9.03 s | **0.00** | 0.00 ms |
+| **Carga Normal** | 5 nós | **0** | **1** | 40.78 s | **2.86** | 358.09 ms |
+| **Carga Normal** | 10 nós | **0** | **1** | 63.18 s | **3.47** | 2446.51 ms |
+| **Alta Contenção** | 5 nós | **0** | **1** | 31.42 s | **3.13** | 2385.47 ms |
+| **Alta Contenção** | 10 nós | **0** | **1** | 62.51 s | **3.53** | 5704.11 ms |
+| **Carga Desigual** | 5 nós | **0** | **1** | 41.11 s | **2.40** | 239.08 ms |
+| **Carga Desigual** | 10 nós | **0** | **1** | 64.51 s | **3.55** | 2795.25 ms |
+
+---
+
+### 7.6. Análise Comparativa Cruzada: Ambiente Local vs. Nuvem (OCI)
+
+A comparação direta entre os dados coletados no host de desenvolvimento (Local) e o cluster real de 3 máquinas virtuais na nuvem (Oracle Cloud) permite validar três propriedades fundamentais de sistemas distribuídos:
+
+```text
++------------------------------------------------------------------------------------------------+
+|                         COMPARATIVO DE COMPLEXIDADE DE MENSAGENS                               |
++--------------------------+---------------------+-----------------------+-----------------------+
+| Cenário                  | Topologia           | Local (Docker)        | Nuvem OCI (Swarm)     |
++--------------------------+---------------------+-----------------------+-----------------------+
+| Carga Normal             | 5 nós               | 2.86 msgs/entrada     | 2.86 msgs/entrada     |
+| Carga Normal             | 10 nós              | 3.53 msgs/entrada     | 3.47 msgs/entrada     |
+| Alta Contenção           | 5 nós               | 2.94 msgs/entrada     | 3.13 msgs/entrada     |
+| Alta Contenção           | 10 nós              | 3.67 msgs/entrada     | 3.53 msgs/entrada     |
+| Carga Desigual           | 5 nós               | 2.58 msgs/entrada     | 2.40 msgs/entrada     |
+| Carga Desigual           | 10 nós              | 3.48 msgs/entrada     | 3.55 msgs/entrada     |
++--------------------------+---------------------+-----------------------+-----------------------+
+```
+
+#### 1. Invariância Topológica do Número de Mensagens ($\mathcal{O}(\log N)$)
+- Observa-se uma **equivalência quase exata** no número de mensagens de protocolo por entrada entre o ambiente local e a nuvem:
+  - Em 5 nós: **2.86 msgs/entrada** (Local) vs. **2.86 msgs/entrada** (Nuvem) em carga normal.
+  - Em 10 nós: **3.53 msgs/entrada** (Local) vs. **3.47 msgs/entrada** (Nuvem) em carga normal.
+- **Fundamentação:** Isso valida que a complexidade de mensagens do algoritmo de Naimi–Tréhel é uma propriedade **puramente lógica e topológica**, dependente unicamente do grafo em árvore e da sequência estocástica de pedidos, mantendo-se rigorosamente invariante independentemente da infraestrutura física subjacente.
+
+#### 2. Efeito do RTT Real e Encapsulamento de Rede VXLAN
+- Enquanto no ambiente local a comunicação ocorre via ponte de software (`bridge`) com latência na ordem de microssegundos ($< 0{,}1\text{ ms}$), na nuvem os pacotes transitam pelas interfaces físicas das instâncias OCI e passam pela camada de encapsulamento **VXLAN (UDP 4789)** da rede `overlay` do Docker Swarm.
+- **Impacto no Tempo de Espera Mediano (Alta Contenção - 10 nós):**
+  - Local: **5.317,99 ms**
+  - Nuvem: **5.704,11 ms** (+386,12 ms)
+  - O aumento de ~386 ms na fila com 10 participantes sob contenção contínua reflete diretamente o custo cumulativo do Round-Trip Time (RTT) e do processamento de rede nas 3 VMs distintas à medida que `REQUEST` e `TOKEN` percorrem múltiplos nós físicos.
+
+#### 3. Robustez e Eficácia da Exclusão Mútua (*Zero Violations*)
+- Sob ambas as infraestruturas, a sincronização do Cluster Sync atingiu **100% de sucesso**:
+  - **18 rodadas coordenadas locais:** 1.350 entradas na SC com **0 sobreposições**.
+  - **18 rodadas coordenadas na nuvem:** 1.350 entradas na SC distribuídas entre as 3 máquinas com **rigorosamente 0 sobreposições**.
+  - As provas de instrumentação (`disabled_sync`) reproduziram consistentemente violações maciças (**44 a 48** em 5 nós e **99** em 10 nós), ratificando a validade estatística e operacional de toda a instrumentação de telemetria.
 
 ---
 
