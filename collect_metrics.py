@@ -53,16 +53,16 @@ def get_compose_args(mode, nodes, exp_name):
     if mode == "local":
         args = ["-f", "docker-compose.yml"]
         if nodes == 10:
-            args.extend(["-f", "docker-compose-10nodes.yml"])
+            args.extend(["-f", "docker-compose.ten-nodes.yml"])
         if "unequal" in exp_name:
-            args.extend(["-f", "docker-compose-unequal.yml"])
+            args.extend(["-f", "docker-compose.unequal.yml"])
         return " ".join(args)
     else:
         args = ["-c", "docker-stack.yml"]
         if nodes == 10:
-            args.extend(["-c", "docker-stack-10nodes.yml"])
+            args.extend(["-c", "docker-stack.ten-nodes.yml"])
         if "unequal" in exp_name:
-            args.extend(["-c", "docker-stack-unequal.yml"])
+            args.extend(["-c", "docker-stack.unequal.yml"])
         return " ".join(args)
 
 def wait_swarm_cleanup(timeout=60):

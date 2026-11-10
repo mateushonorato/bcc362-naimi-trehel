@@ -94,11 +94,11 @@ Considere $N$ processos participantes no Cluster Sync:
 │   └── metrics_results_swarm.json  # Base JSON completa com telemetria detalhada (Nuvem)
 ├── Dockerfile                 # Definição da imagem leve baseada em python:3.12-alpine
 ├── docker-compose.yml         # Orquestração local base com 5 nós, 5 clientes e 1 observador
-├── docker-compose-10nodes.yml # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
-├── docker-compose-unequal.yml # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+├── docker-compose.ten-nodes.yml # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
+├── docker-compose.unequal.yml # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
 ├── docker-stack.yml           # Orquestração Swarm base com 5 nós distribuídos em 3 VMs (Oracle Cloud)
-├── docker-stack-10nodes.yml   # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
-├── docker-stack-unequal.yml   # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+├── docker-stack.ten-nodes.yml # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
+├── docker-stack.unequal.yml   # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
 └── README.md                  # Documentação completa e relatório de experimentos
 ```
 
@@ -137,17 +137,17 @@ docker compose up --build
 
 **Cenário de escala (10 nós — composição):**
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-10nodes.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml up --build
 ```
 
 **Cenário de carga desigual (5 nós — override):**
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-unequal.yml up
+docker compose -f docker-compose.yml -f docker-compose.unequal.yml up
 ```
 
 **Cenário de escala com carga desigual (10 nós — composição tripla):**
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-10nodes.yml -f docker-compose-unequal.yml up
+docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml -f docker-compose.unequal.yml up
 ```
 
 ### 5.2. Inspecionar Métricas e Estado em Tempo de Execução
@@ -167,7 +167,7 @@ done
 ```bash
 docker compose down
 # ou para 10 nós:
-docker compose -f docker-compose.yml -f docker-compose-10nodes.yml down
+docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
 ```
 
 ---
@@ -181,7 +181,7 @@ A implantação em nuvem distribui os contêineres entre **3 máquinas virtuais 
   - **VM 2 (`vm2` — Worker, 4 contêineres):** `node2`, `node3`, `client2`, `client3`
   - **VM 3 (`vm3` — Worker, 4 contêineres):** `node4`, `node5`, `client4`, `client5`
 
-- **Topologia de 10 nós (`docker-stack.yml` + `docker-stack-10nodes.yml` — distribuição simétrica balanceada de 7 contêineres por VM):**
+- **Topologia de 10 nós (`docker-stack.yml` + `docker-stack.ten-nodes.yml` — distribuição simétrica balanceada de 7 contêineres por VM):**
   - **VM 1 (`vm1` — Manager, 7 contêineres):** `observer`, `node1`, `client1` + `node6`, `node7`, `client6`, `client7`
   - **VM 2 (`vm2` — Worker, 7 contêineres):** `node2`, `node3`, `client2`, `client3` + `node8`, `client8`, `client9`
   - **VM 3 (`vm3` — Worker, 7 contêineres):** `node4`, `node5`, `client4`, `client5` + `node9`, `node10`, `client10`
@@ -219,10 +219,10 @@ Na **VM 1 (Manager)**:
 docker stack deploy -c docker-stack.yml clustersync
 
 # Para 10 nós (composição):
-docker stack deploy -c docker-stack.yml -c docker-stack-10nodes.yml clustersync
+docker stack deploy -c docker-stack.yml -c docker-stack.ten-nodes.yml clustersync
 
 # Para carga desigual:
-docker stack deploy -c docker-stack.yml -c docker-stack-unequal.yml clustersync
+docker stack deploy -c docker-stack.yml -c docker-stack.unequal.yml clustersync
 ```
 Acompanhe os serviços e métricas:
 ```bash
@@ -379,7 +379,7 @@ Os testes distribuídos foram executados em um cluster de **3 máquinas virtuais
   - **VM 3 (`k3s-3`, Worker 2):** `10.0.0.252` (VCN privada OCI, sub-rede `10.0.0.0/24`)
 - **Balanceamento de Contêineres:**
   - *Cenário de 5 nós (11 contêineres):* VM 1 = 3 contêineres (`observer`, `node1`, `client1`); VM 2 = 4 contêineres (`node2`, `node3`, `client2`, `client3`); VM 3 = 4 contêineres (`node4`, `node5`, `client4`, `client5`).
-  - *Cenário de 10 nós (21 contêineres):* Distribuição perfeitamente simétrica **7 / 7 / 7** contêineres por VM via composição com `docker-stack-10nodes.yml`.
+  - *Cenário de 10 nós (21 contêineres):* Distribuição perfeitamente simétrica **7 / 7 / 7** contêineres por VM via composição com `docker-stack.ten-nodes.yml`.
 
 #### Tabela Consolidada de Execuções em Nuvem (`results/metrics_results_swarm.csv`)
 
