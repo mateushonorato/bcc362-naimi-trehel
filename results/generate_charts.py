@@ -100,26 +100,17 @@ def plot_complexity():
     mpe_10_high = local_data[("high_contention", 10)]["avg_mpe"]
     mpe_10_uneq = local_data[("unequal_load", 10)]["avg_mpe"]
 
-    # Deslocamento horizontal simétrico (jitter) para evitar sobreposição entre marcadores próximos
-    dx = {"uneq": -0.16, "norm": 0.0, "high": 0.16}
-
-    ax.scatter(5 + dx["uneq"], mpe_5_uneq, color="#7570b3", s=85, marker="^",
-               label=f"Carga Desigual (5: {mpe_5_uneq:.2f} | 10: {mpe_10_uneq:.2f})", zorder=5)
-    ax.scatter(5 + dx["norm"], mpe_5_norm, color="#2e7d32", s=85, marker="s",
+    # Pontos medidos locais posicionados estritamente nos inteiros N=5 e N=10
+    # Formas geométricas distintas (quadrado, losango, triângulo) e bordas escuras garantem distinção visual
+    ax.scatter([5, 10], [mpe_5_norm, mpe_10_norm], color="#2e7d32", s=80, marker="s",
+               edgecolor="#1b4d20", linewidth=1.2,
                label=f"Carga Normal (5: {mpe_5_norm:.2f} | 10: {mpe_10_norm:.2f})", zorder=5)
-    ax.scatter(5 + dx["high"], mpe_5_high, color="#d95f02", s=95, marker="D",
-               label=f"Alta Contenção (5: {mpe_5_high:.2f} | 10: {mpe_10_high:.2f})", zorder=5)
-
-    ax.scatter(10 + dx["uneq"], mpe_10_uneq, color="#7570b3", s=85, marker="^", zorder=5)
-    ax.scatter(10 + dx["norm"], mpe_10_norm, color="#2e7d32", s=85, marker="s", zorder=5)
-    ax.scatter(10 + dx["high"], mpe_10_high, color="#d95f02", s=95, marker="D", zorder=5)
-
-    # Rótulo numérico individual junto a cada marcador para máxima clareza
-    for xv, yv in [(5 + dx["uneq"], mpe_5_uneq), (5 + dx["norm"], mpe_5_norm), (5 + dx["high"], mpe_5_high),
-                   (10 + dx["uneq"], mpe_10_uneq), (10 + dx["norm"], mpe_10_norm), (10 + dx["high"], mpe_10_high)]:
-        ax.annotate(f"{yv:.2f}", (xv, yv), textcoords="offset points",
-                    xytext=(0, -14 if yv < 2.7 else 6),
-                    ha="center", fontsize=8, fontweight="bold", color="#222")
+    ax.scatter([5, 10], [mpe_5_high, mpe_10_high], color="#d95f02", s=90, marker="D",
+               edgecolor="#873600", linewidth=1.2,
+               label=f"Alta Contenção (5: {mpe_5_high:.2f} | 10: {mpe_10_high:.2f})", zorder=6)
+    ax.scatter([5, 10], [mpe_5_uneq, mpe_10_uneq], color="#7570b3", s=85, marker="^",
+               edgecolor="#3d376d", linewidth=1.2,
+               label=f"Carga Desigual (5: {mpe_5_uneq:.2f} | 10: {mpe_10_uneq:.2f})", zorder=7)
 
     # Anotações nas cotas teóricas de 5 e 10 nós posicionadas sem colisões
     h4 = sum(1.0 / i for i in range(1, 5)) + 1.0  # 3.083
