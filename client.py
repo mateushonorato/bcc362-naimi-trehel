@@ -10,6 +10,7 @@ NUM_REQUESTS = int(os.environ.get("NUM_REQUESTS", "10"))
 MIN_SLEEP = float(os.environ.get("CLIENT_MIN_SLEEP", "1.0"))
 MAX_SLEEP = float(os.environ.get("CLIENT_MAX_SLEEP", "5.0"))
 RANDOM_SEED = int(os.environ.get("RANDOM_SEED", "42"))
+CLIENT_TIMEOUT = float(os.environ.get("CLIENT_TIMEOUT", "300.0"))
 
 random.seed(f"{RANDOM_SEED}-{CLIENT_ID}")
 
@@ -17,7 +18,7 @@ def send_with_retry(url, body):
     while True:
         try:
             req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=CLIENT_TIMEOUT) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except Exception:
             time.sleep(1.0)
