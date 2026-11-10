@@ -259,6 +259,12 @@ main {
     padding: 6px 10px;
     font-size: 0.85em;
 }
+.test-select-group input[type="number"] {
+    width: 72px;
+    text-align: center;
+    padding: 6px 6px 6px 10px;
+    font-weight: 600;
+}
 .manual-nodes-group {
     display: flex;
     gap: 6px;
