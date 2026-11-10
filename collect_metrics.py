@@ -65,6 +65,15 @@ def get_compose_args(mode, nodes, exp_name):
             args.extend(["-c", "docker-stack-unequal.yml"])
         return " ".join(args)
 
+def wait_swarm_cleanup(timeout=60):
+    start = time.time()
+    while time.time() - start < timeout:
+        res = run_cmd("docker stack ps clustersync", check=False)
+        if "Nothing found" in res.stderr or "No such stack" in res.stderr or not res.stdout.strip():
+            break
+        time.sleep(2)
+    time.sleep(5)
+
 def start_cluster(mode, nodes, exp_name, env_vars):
     if mode == "local":
         file_args = get_compose_args("local", nodes, exp_name)
@@ -75,7 +84,7 @@ def start_cluster(mode, nodes, exp_name, env_vars):
         file_args = get_compose_args("swarm", nodes, exp_name)
         print(f"[*] [Swarm] Fazendo deploy da stack com {file_args}...")
         run_cmd("docker stack rm clustersync", check=False)
-        time.sleep(10)  # aguarda limpeza de redes e serviços no Swarm
+        wait_swarm_cleanup()
         run_cmd(f"docker stack deploy {file_args} clustersync", env=env_vars)
 
 def stop_cluster(mode, nodes, exp_name="normal"):
@@ -86,7 +95,7 @@ def stop_cluster(mode, nodes, exp_name="normal"):
     elif mode == "swarm":
         print("[*] [Swarm] Removendo stack clustersync...")
         run_cmd("docker stack rm clustersync", check=False)
-        time.sleep(5)
+        wait_swarm_cleanup()
 
 def wait_completion(expected_total, timeout=300):
     print(f"[*] Aguardando conclusão de {expected_total} pedidos no Observador (timeout={timeout}s)...")
@@ -167,7 +176,7 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
 
     try:
         start_cluster(mode, nodes, exp_name, env_vars)
-        if not wait_for_http(f"{OBSERVER_URL}/stats", timeout=30):
+        if not wait_for_http(f"{OBSERVER_URL}/stats", timeout=60):
             raise RuntimeError("Observador não respondeu na porta 9000.")
 
         wall_start = time.time()
@@ -304,6 +313,16 @@ def main():
                 num_reps = args.repetitions
 
             for rep in range(1, num_reps + 1):
+                if args.append and any(
+                    r.get("experiment") == exp_name and
+                    r.get("nodes_count") == nodes and
+                    r.get("repetition") == rep and
+                    r.get("total_completed") == r.get("expected_total")
+                    for r in results
+                ):
+                    print(f"[*] [Skip] {exp_name.upper()} | Nós: {nodes} | Rep: {rep} já concluído anteriormente.")
+                    continue
+
                 res = run_single_experiment(
                     mode=args.mode,
                     nodes=nodes,
