@@ -71,9 +71,16 @@ class NaimiTrehelNode:
             "node_id": NODE_ID,
             "request_id": request_id
         }).encode("utf-8")
-        req = urllib.request.Request(f"{OBSERVER_URL}/event", data=body, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            resp.read()
+        url = f"{OBSERVER_URL}/event"
+        for _ in range(10):
+            try:
+                req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    resp.read()
+                return
+            except Exception:
+                time.sleep(0.1)
+        print(f"[WARN] Falha ao notificar observer ({event_type}) para {request_id}", flush=True)
 
     def log_event(self, stage, request_id, extra=""):
         print(
@@ -147,17 +154,20 @@ class NaimiTrehelNode:
         with self.state_lock:
             self.has_token = True
             self.token_event.set()
+            self.log_event("TOKEN_RECV", request_id, f"<- recebido de {sender}")
 
     def handle_client_write(self, resource, request_id):
         # Serializa pedidos concorrentes recebidos pelo mesmo no
         with self.client_entry_lock:
             wait_ms = self.acquire(resource, request_id)
-            self.log_event("ENTER", request_id)
-            self.notify_observer("BEGIN", request_id)
-            time.sleep(random.uniform(CS_MIN_SLEEP, CS_MAX_SLEEP))
-            self.notify_observer("END", request_id)
-            self.log_event("EXIT", request_id)
-            self.release(resource, request_id)
+            try:
+                self.log_event("ENTER", request_id)
+                self.notify_observer("BEGIN", request_id)
+                time.sleep(random.uniform(CS_MIN_SLEEP, CS_MAX_SLEEP))
+                self.notify_observer("END", request_id)
+                self.log_event("EXIT", request_id)
+            finally:
+                self.release(resource, request_id)
             self.log_event("COMMITTED", request_id)
             return wait_ms
 
@@ -209,6 +219,9 @@ class NodeHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
+        else:
+            self.send_response(404)
+            self.end_headers()
 
 if __name__ == "__main__":
     print(f"[INIT] {NODE_ID} iniciado | father={node.father} | token={node.has_token} | sync={SYNC_ENABLED}", flush=True)
