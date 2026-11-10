@@ -126,6 +126,7 @@ main {
     font-family: 'Consolas', monospace;
     font-size: 0.8em;
     max-height: 250px;
+    scroll-behavior: smooth;
 }
 
 .log-entry { padding: 3px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); border-left: 3px solid transparent; }
@@ -204,14 +205,20 @@ main {
 }
 
 /* Timeline */
-#timeline-container { max-height: 250px; overflow-y: auto; }
+#timeline-container {
+    max-height: 250px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
 .timeline-item {
     padding: 5px 10px;
     margin-bottom: 5px;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 4px;
     font-size: 0.8em;
-    animation: slideIn 0.3s ease;
+}
+.timeline-item:last-child {
+    animation: slideIn 0.25s ease;
 }
 .timeline-time { color: #aaa; font-size: 0.75em; }
 .timeline-desc { color: #ddd; }

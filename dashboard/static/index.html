@@ -854,20 +854,26 @@
         // ==============================================
         function addLog(msg, type = "info") {
             const c = document.getElementById('log-container');
+            if (!c) return;
             const d = document.createElement('div');
             d.className = `log-entry log-${type}`;
             d.innerText = msg;
-            c.prepend(d);
-            if (c.children.length > 120) c.removeChild(c.lastChild);
+            c.appendChild(d);
+            if (c.children.length > 200) c.removeChild(c.firstChild);
+            c.scrollTop = c.scrollHeight;
         }
 
         function clearLogs() {
-            document.getElementById('log-container').innerHTML = '<div class="log-entry log-system">Logs limpos.</div>';
+            const c = document.getElementById('log-container');
+            if (c) {
+                c.innerHTML = '<div class="log-entry log-system">Logs limpos.</div>';
+                c.scrollTop = c.scrollHeight;
+            }
         }
 
         function addTimeline(type, desc, node) {
             timelineEvents.push({ type, desc, node, time: new Date().toLocaleTimeString() });
-            if (timelineEvents.length > 15) timelineEvents.shift();
+            if (timelineEvents.length > 50) timelineEvents.shift();
             renderTimeline();
         }
 
@@ -880,12 +886,15 @@
                 'EXIT': '#3498db',
                 'COMMITTED': '#2ecc71'
             };
-            document.getElementById('timeline-container').innerHTML = timelineEvents.slice().reverse().map(e => `
+            const c = document.getElementById('timeline-container');
+            if (!c) return;
+            c.innerHTML = timelineEvents.map(e => `
                 <div class="timeline-item" style="border-left: 3px solid ${colors[e.type] || '#95a5a6'};">
                     <div class="timeline-time">${e.time}</div>
                     <div class="timeline-desc"><b>${e.node}</b>: ${e.desc}</div>
                 </div>
             `).join('');
+            c.scrollTop = c.scrollHeight;
         }
 
         // ==============================================
