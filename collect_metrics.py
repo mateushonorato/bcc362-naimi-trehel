@@ -126,7 +126,7 @@ def collect_node_metrics(nodes):
         "msgs_per_entry": msgs_per_entry
     }
 
-def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, cs_max, client_min, client_max, sync_enabled=True):
+def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, cs_max, client_min, client_max, client1_min=None, client1_max=None, sync_enabled=True):
     expected_total = nodes * num_requests
     seed = 42 + rep_idx * 10
 
@@ -140,10 +140,17 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
         "RANDOM_SEED": str(seed),
         "CLIENT_TIMEOUT": "300.0"
     }
+    if client1_min is not None:
+        env_vars["CLIENT1_MIN_SLEEP"] = str(client1_min)
+    if client1_max is not None:
+        env_vars["CLIENT1_MAX_SLEEP"] = str(client1_max)
 
     print("\n" + "="*80)
     print(f"EXPOSIÇÃO: {exp_name.upper()} | NÓS: {nodes} | REPETIÇÃO: {rep_idx} | SEMENTE: {seed} | SYNC: {sync_enabled}")
-    print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep cliente: [{client_min}s, {client_max}s]")
+    if client1_min is not None:
+        print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep client1: [{client1_min}s, {client1_max}s] | Sleep outros: [{client_min}s, {client_max}s]")
+    else:
+        print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep cliente: [{client_min}s, {client_max}s]")
     print("="*80)
 
     try:
@@ -233,7 +240,7 @@ def main():
     parser = argparse.ArgumentParser(description="Automação de Testes de Métricas — TP2 Sistemas Distribuídos")
     parser.add_argument("--mode", choices=["local", "swarm"], default="local", help="Ambiente de execução (default: local)")
     parser.add_argument("--nodes", choices=["5", "10", "both"], default="both", help="Quantidade de nós do cluster (default: both)")
-    parser.add_argument("--experiments", nargs="+", choices=["disabled", "normal", "high", "all"], default=["all"], help="Experimentos a executar (default: all)")
+    parser.add_argument("--experiments", nargs="+", choices=["disabled", "normal", "high", "unequal", "all"], default=["all"], help="Experimentos a executar (default: all)")
     parser.add_argument("--repetitions", type=int, default=3, help="Número de repetições por experimento (default: 3)")
     parser.add_argument("--requests", type=int, default=10, help="Quantidade de requisições por cliente (default: 10)")
     parser.add_argument("--append", action="store_true", help="Acrescenta aos resultados existentes em vez de sobrescrever")
@@ -247,7 +254,7 @@ def main():
 
     # Define quais experimentos rodar
     if "all" in args.experiments:
-        exp_list = ["disabled", "normal", "high"]
+        exp_list = ["disabled", "normal", "high", "unequal"]
     else:
         exp_list = args.experiments
 
@@ -261,16 +268,22 @@ def main():
 
     for nodes in node_list:
         for exp in exp_list:
+            c1_min, c1_max = None, None
             if exp == "disabled":
                 c_min, c_max = 0.0, 0.0
                 sync = False
                 exp_name = "disabled_sync"
-                # Para prova de instrumentação, 1 repetição já é uma prova conclusiva
                 num_reps = 1 if args.repetitions > 1 else 1
             elif exp == "normal":
                 c_min, c_max = 1.0, 5.0
                 sync = True
                 exp_name = "normal_contention"
+                num_reps = args.repetitions
+            elif exp == "unequal":
+                c_min, c_max = 1.0, 5.0
+                c1_min, c1_max = 0.1, 0.3
+                sync = True
+                exp_name = "unequal_load"
                 num_reps = args.repetitions
             else:  # high contention
                 c_min, c_max = 0.0, 0.0
@@ -289,6 +302,8 @@ def main():
                     cs_max=1.0,
                     client_min=c_min,
                     client_max=c_max,
+                    client1_min=c1_min,
+                    client1_max=c1_max,
                     sync_enabled=sync
                 )
                 results.append(res)
