@@ -360,9 +360,9 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 #### 3. Dinâmica de Espera e Fila FIFO (*Liveness* e Ausência de Starvation)
 - Sob **Alta Contenção**, os clientes solicitam o recurso sem pausa (`CLIENT_MIN_SLEEP=0`). A espera deixa de ser dominada por intervalos ociosos e passa a refletir estritamente o esvaziamento sequencial da fila distribuída `next_queue`.
 - **Fundamentação Estatística:** Como a permanência na seção crítica é uniformemente distribuída entre $0{,}2\text{ s}$ e $1{,}0\text{ s}$, a distribuição é perfeitamente simétrica, fazendo com que a média coincida com a mediana teórica ($\mu = \text{mediana} = 0{,}6\text{ s}$). Por extensão da soma de variáveis simétricas independentes, a mediana teórica de espera para um nó enfileirado na cauda atrás dos $(N-1)$ demais processos concorrentes é exatamente $(N - 1) \times \mu_{CS}$:
-  - **Em 5 nós ($N=5$):** Espera pelos 4 predecessores $\rightarrow 4 \times 0{,}6\text{ s} = 2{,}4\text{ s} = 2.400\text{ ms}$. A mediana medida foi de **2.426 ms** (desvio de apenas $+1{,}1\%$).
-  - **Em 10 nós ($N=10$):** Espera pelos 9 predecessores $\rightarrow 9 \times 0{,}6\text{ s} = 5{,}4\text{ s} = 5.400\text{ ms}$. A mediana medida foi de **5.318 ms** (desvio de apenas $-1{,}5\%$).
-- A correspondência rigorosa ($\ge 98{,}5\%$ de aderência ao modelo analítico) confirma a ordenação estrita FIFO de `next_queue` e comprova matematicamente a **ausência de starvation**: nenhum processo foi ultrapassado arbitrariamente ou retido além do tempo determinístico de serviço dos predecessores.
+  - **Em 5 nós ($N=5$):** Espera pelos 4 predecessores $\rightarrow 4 \times 0{,}6\text{ s} = 2{,}4\text{ s} = 2.400\text{ ms}$. A mediana medida foi de **2.426 ms** (desvio de apenas **+1,1%**).
+  - **Em 10 nós ($N=10$):** Espera pelos 9 predecessores $\rightarrow 9 \times 0{,}6\text{ s} = 5{,}4\text{ s} = 5.400\text{ ms}$. A mediana medida foi de **5.318 ms** (desvio de apenas **-1,5%**).
+- A correspondência rigorosa (aderência $\ge$ **98,5%** ao modelo analítico) confirma a ordenação estrita FIFO de `next_queue` e comprova matematicamente a **ausência de starvation**: nenhum processo foi ultrapassado arbitrariamente ou retido além do tempo determinístico de serviço dos predecessores.
 
 <p align="center">
   <img src="results/charts/02_espera_fila_fifo.png" alt="Espera Mediana sob Alta Contenção vs. Previsão Teórica FIFO" width="850">
@@ -370,10 +370,10 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 
 #### 4. Efeito de Localidade na Carga Desigual
 - No cenário de **Carga Desigual**, onde `client1` realizou requisições frequentes em rajada (intervalo de $0{,}1\text{ s}$ a $0{,}3\text{ s}$ contra $1\text{ a }5\text{ s}$ dos demais), o número médio de mensagens por entrada sofreu redução quando comparado à Carga Normal:
-  - **Topologia de 5 nós ($N=5$):** O tráfego médio caiu de $2{,}86$ para **2.59 msgs/entrada** (média exata de $2{,}587$), alcançando uma economia de **$-9{,}6\%$** ($-0{,}27$ msgs/entrada).
-  - **Topologia de 10 nós ($N=10$):** O tráfego médio caiu de $3{,}53$ para **3.48 msgs/entrada**, com economia de **$-1{,}2\%$** ($-0{,}04$ msgs/entrada).
+  - **Topologia de 5 nós ($N=5$):** O tráfego médio caiu de $2{,}86$ para **2.59 msgs/entrada** (média exata de $2{,}587$), alcançando uma economia de **-9,6%** (-0,27 msgs/entrada).
+  - **Topologia de 10 nós ($N=10$):** O tráfego médio caiu de $3{,}53$ para **3.48 msgs/entrada**, com economia de **-1,2%** (-0,04 msgs/entrada).
 - **Explicação Teórica (Reuso Local do Token):** Quando o `node1` recebe novas requisições em rajada enquanto ainda detém a posse do token (`has_token == True`), a entrada na seção crítica é concedida localmente sem nenhuma troca de mensagens pela rede (`0 msgs`). A reversão de caminhos otimiza naturalmente rajadas locais, beneficiando nós com maior demanda sem penalizar a garantia de repasse aos demais nós enfileirados.
-- **Por que a Economia é Superior em 5 Nós ($-9{,}6\%$ vs. $-1{,}2\%$)?**
+- **Por que a Economia é Superior em 5 Nós (-9,6% vs. -1,2%)?**
   - Em **5 nós**, o nó em rajada (`node1`) representa **20%** de todos os clientes do cluster. Como os outros 4 nós realizam requisições com intervalos espaçados ($1\text{ a }5\text{ s}$), a probabilidade de disputa simultânea é baixa, permitindo que `node1` emende múltiplas entradas consecutivas retendo o token localmente antes que outro nó o solicite.
   - Em **10 nós**, há **9 outros concorrentes ativos** (90% do cluster). A probabilidade estocástica de que ao menos um dos outros 9 clientes gere um `REQUEST` e enfileire-se em `next_queue` durante o ciclo é expressivamente maior, obrigando `node1` a despachar o token pela rede com mais frequência e diluindo o ganho de localidade.
 
@@ -462,13 +462,12 @@ A comparação direta entre os dados coletados no host de desenvolvimento (Local
 - **Por que o Overhead só se Manifesta Expressivamente em 10 Nós?**
   - **Serialização Cumulativa na Fila Cheia (Alta Contenção):**
     - Em *Carga Normal*, a fila `next_queue` quase sempre está vazia ou contém apenas 1 nó, de modo que o RTT de rede não se acumula.
-    - Em *Alta Contenção com 10 nós*, a fila permanece permanentemente cheia com os **9 nós concorrentes**. Como a concessão da Seção Crítica é estritamente sequencial, o atraso de rede (RTT físico + encapsulamento VXLAN) não é paralelo, mas **serializado ao longo dos 9 predecessores**:
-      $$\Delta T_{\text{espera}} = \sum_{k=1}^{9} \left( \text{RTT}_{\text{inter-VM}}^{(k)} + \text{Overhead}_{\text{VXLAN}}^{(k)} \right) \approx +386{,}12\text{ ms}$$
+    - Em *Alta Contenção com 10 nós*, a fila permanece permanentemente cheia com os **9 nós concorrentes**. Como a concessão da Seção Crítica é estritamente sequencial, o atraso de rede (RTT físico somado ao encapsulamento VXLAN) não é paralelo, mas **serializado ao longo dos 9 predecessores**: $\Delta T = \sum_{k=1}^{9} (\text{RTT}(k) + \text{VXLAN}(k)) \approx +386{,}12\text{ ms}$.
     - Isso elevou a espera mediana de **5.317,99 ms** (Local) para **5.704,11 ms** (Nuvem OCI).
   - **Tráfego Cruzado Inter-VM Contínuo (Carga Desigual):**
-    - Em *Carga Desigual com 10 nós*, o tráfego em rajada gerado por `client1` na VM1 exigiu sucessivas trocas de mensagens com os outros 9 nós distribuídos nas VMs 2 e 3, gerando um acréscimo de **$+350{,}21\text{ ms}$** na nuvem (**2.445,04 ms** no Local vs. **2.795,25 ms** na Nuvem).
+    - Em *Carga Desigual com 10 nós*, o tráfego em rajada gerado por `client1` na VM1 exigiu sucessivas trocas de mensagens com os outros 9 nós distribuídos nas VMs 2 e 3, gerando um acréscimo de **+350,21 ms** na nuvem (**2.445,04 ms** no Local vs. **2.795,25 ms** na Nuvem).
   - **Contraste com a Topologia de 5 Nós:**
-    - Em 5 nós, cerca de $40\%$ dos contêineres estavam co-alocados na mesma VM (comunicação intra-host sem trânsito externo) e a fila sob contenção possuía apenas 4 predecessores, tornando o atraso cumulativo insignificante diante do tempo de serviço na SC.
+    - Em 5 nós, cerca de **40%** dos contêineres estavam co-alocados na mesma VM (comunicação intra-host sem trânsito externo) e a fila sob contenção possuía apenas 4 predecessores, tornando o atraso cumulativo insignificante diante do tempo de serviço na SC.
 
 <p align="center">
   <img src="results/charts/04_overhead_rede_local_vs_nuvem.png" alt="Comparativo de Latência de Espera: Local vs. Nuvem OCI" width="850">
