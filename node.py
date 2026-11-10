@@ -94,15 +94,16 @@ class NaimiTrehelNode:
             "request_id": request_id
         }).encode("utf-8")
         url = f"{OBSERVER_URL}/event"
-        for _ in range(10):
+        start_t = time.monotonic()
+        while time.monotonic() - start_t < 60.0:
             try:
                 req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     resp.read()
                 return
             except Exception:
-                time.sleep(0.1)
-        print(f"[WARN] Falha ao notificar observer ({event_type}) para {request_id}", flush=True)
+                time.sleep(0.2)
+        print(f"[WARN] Falha definitiva ao notificar observer ({event_type}) para {request_id}", flush=True)
 
     def log_event(self, stage, request_id, extra=""):
         print(
