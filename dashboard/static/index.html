@@ -459,6 +459,11 @@
                 } else if (data.type === 'RESET') {
                     timelineEvents = [];
                     renderTimeline();
+                    if (trafficChart) {
+                        trafficChart.data.labels = [];
+                        trafficChart.data.datasets[0].data = [];
+                        trafficChart.update();
+                    }
                 }
                 renderTopology();
                 renderHeatmap();
@@ -589,8 +594,12 @@
         // ==============================================
         function renderHeatmap() {
             const container = document.getElementById('heatmap-container');
+            if (!container) return;
             const entries = Object.entries(nodeWaitTimes);
-            if (entries.length === 0) return;
+            if (entries.length === 0) {
+                container.innerHTML = '<p style="color: #aaa;">Aguardando medições...</p>';
+                return;
+            }
 
             const html = entries.sort().map(([nodeId, times]) => {
                 const sorted = [...times].sort((a,b) => a - b);
@@ -616,10 +625,22 @@
             if (allWaits.length > 0) {
                 const median = allWaits[Math.floor(allWaits.length / 2)];
                 document.getElementById('avg-rt').innerText = `${median.toFixed(1)} ms`;
+            } else {
+                document.getElementById('avg-rt').innerText = '0 ms';
             }
+
             if (csEntries > 0) {
                 const msgsPerCs = (totalMessages / csEntries);
                 document.getElementById('msgs-per-cs').innerText = msgsPerCs.toFixed(2);
+            } else {
+                document.getElementById('msgs-per-cs').innerText = '0.00';
+            }
+
+            if (csEntries === 0) {
+                const avgSd = document.getElementById('avg-sd');
+                if (avgSd) avgSd.innerText = '0 ms';
+                const tp = document.getElementById('throughput');
+                if (tp) tp.innerText = '0/s';
             }
         }
 
@@ -763,7 +784,11 @@
 
         async function resetAllMetrics() {
             if (confirm("Deseja realmente zerar todas as métricas, gráficos e logs?")) {
-                await fetch('/api/reset', { method: 'POST' });
+                const r = await fetch('/api/reset', { method: 'POST' });
+                const d = await r.json();
+                if (d && d.state) {
+                    handleIncomingEvent({ type: 'RESET', state: d.state });
+                }
             }
         }
 
