@@ -13,6 +13,8 @@ services:
       INITIAL_FATHER: ""
       HAS_TOKEN: "true"
       SYNC_ENABLED: "${SYNC_ENABLED:-true}"
+      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
+      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
     ports:
       - "8001:8000"
     depends_on: [observer]
@@ -25,6 +27,8 @@ services:
       INITIAL_FATHER: "node1"
       HAS_TOKEN: "false"
       SYNC_ENABLED: "${SYNC_ENABLED:-true}"
+      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
+      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
     ports:
       - "8002:8000"
     depends_on: [observer, node1]
@@ -37,6 +41,8 @@ services:
       INITIAL_FATHER: "node1"
       HAS_TOKEN: "false"
       SYNC_ENABLED: "${SYNC_ENABLED:-true}"
+      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
+      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
     ports:
       - "8003:8000"
     depends_on: [observer, node1]
@@ -49,6 +55,8 @@ services:
       INITIAL_FATHER: "node1"
       HAS_TOKEN: "false"
       SYNC_ENABLED: "${SYNC_ENABLED:-true}"
+      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
+      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
     ports:
       - "8004:8000"
     depends_on: [observer, node1]
@@ -61,6 +69,8 @@ services:
       INITIAL_FATHER: "node1"
       HAS_TOKEN: "false"
       SYNC_ENABLED: "${SYNC_ENABLED:-true}"
+      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
+      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
     ports:
       - "8005:8000"
     depends_on: [observer, node1]
@@ -74,6 +84,8 @@ services:
       NUM_REQUESTS: "${NUM_REQUESTS:-10}"
       CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
+      RANDOM_SEED: "${RANDOM_SEED:-42}"
+      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
 
   client2:
@@ -85,6 +97,8 @@ services:
       NUM_REQUESTS: "${NUM_REQUESTS:-10}"
       CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
+      RANDOM_SEED: "${RANDOM_SEED:-42}"
+      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
 
   client3:
@@ -96,6 +110,8 @@ services:
       NUM_REQUESTS: "${NUM_REQUESTS:-10}"
       CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
+      RANDOM_SEED: "${RANDOM_SEED:-42}"
+      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
 
   client4:
@@ -107,6 +123,8 @@ services:
       NUM_REQUESTS: "${NUM_REQUESTS:-10}"
       CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
+      RANDOM_SEED: "${RANDOM_SEED:-42}"
+      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
 
   client5:
@@ -118,4 +136,6 @@ services:
       NUM_REQUESTS: "${NUM_REQUESTS:-10}"
       CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
+      RANDOM_SEED: "${RANDOM_SEED:-42}"
+      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
     depends_on: [node1, node2, node3, node4, node5]
