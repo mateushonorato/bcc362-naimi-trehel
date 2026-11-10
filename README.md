@@ -171,11 +171,18 @@ done
 ```
 
 ### 5.3. Encerrar os Contêineres
+
+Para encerrar e remover todos os contêineres e a rede de forma limpa (válido tanto para 5 quanto para 10 nós ou cargas desiguais, sem precisar listar múltiplos arquivos YAML):
+
 ```bash
-docker compose down
-# ou para 10 nós:
-docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
+docker compose down --remove-orphans
 ```
+
+> [!TIP]
+> A flag `--remove-orphans` garante que contêineres instanciados via arquivos de extensão (`node6..10` e `client6..10`) sejam encerrados imediatamente junto com a rede `syncnet`, prevenindo o erro de *active endpoints*. Alternativamente, pode-se especificar os arquivos explicitamente:
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
+> ```
 
 ---
 
