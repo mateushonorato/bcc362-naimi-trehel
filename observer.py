@@ -22,9 +22,31 @@ Endpoints expostos:
 """
 
 import json
+import os
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://dashboard:8080")
+
+def notify_dashboard(payload):
+    """Envia evento ao Dashboard Web de forma assíncrona sem bloquear o observador."""
+    if not DASHBOARD_URL:
+        return
+    def _send():
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                f"{DASHBOARD_URL}/event", data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                resp.read()
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
 
 # ---------------------------------------------------------------------------
 # Estado global do observador (protegido por lock para acesso thread-safe)
@@ -107,6 +129,18 @@ class ObserverHandler(BaseHTTPRequestHandler):
                 "req_id": req_id,
                 "active": len(active_entries)
             })
+
+            is_overlap = (event_type == "BEGIN" and current_count > 1)
+            active_cnt = len(active_entries)
+
+        notify_dashboard({
+            "type": "OBSERVER",
+            "event": event_type,
+            "node_id": node_id,
+            "request_id": req_id,
+            "overlap": is_overlap,
+            "active_count": active_cnt
+        })
 
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

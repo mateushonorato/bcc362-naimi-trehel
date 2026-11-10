@@ -1,4 +1,13 @@
 services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+
   observer:
     build: .
     command: ["python", "observer.py"]

@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .topology-legend {
+            display: flex;
+            gap: 15px;
+            font-size: 0.8em;
+            margin-bottom: 8px;
+            color: #ccc;
+            flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+        .box-token { background: #2ecc71; border: 2px solid #f1c40f; }
+        .box-cs { background: #e67e22; border: 2px solid #ffffff; }
+        .box-node { background: #2980b9; border: 1px solid #ffffff; }
+        .log-revpath { border-left-color: #f1c40f; color: #f1c40f; }
+        .log-enter { border-left-color: #e67e22; color: #e67e22; font-weight: bold; }
+        .log-exit { border-left-color: #3498db; color: #3498db; }
+        .log-committed { border-left-color: #2ecc71; color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1>🛡️ Cluster Sync — Algoritmo de Naimi–Tréhel (1996)</h1>
+            <div id="status-bar">
+                Status: <span id="global-status" class="status-disconnected">Conectando...</span>
+                &nbsp;|&nbsp; Topologia: <b>Árvore Lógica Dinâmica com Reversão de Caminhos</b>
+            </div>
+        </div>
+
+        <div class="chaos-controls">
+            <button class="btn-info" onclick="toggleRecording()" id="record-btn">⏺️ Gravar Sessão</button>
+            <button class="btn-success" onclick="showReplayMenu()">▶️ Replay</button>
+            <button class="btn-secondary" onclick="clearLogs()">🧹 Limpar Logs</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- PAINEL 1: TOPOLOGIA MERMAID -->
+        <section class="panel" id="topology-panel">
+            <h2>🌳 Topologia da Árvore Lógica Dinâmica (Ponteiros Father)</h2>
+            <div class="topology-legend">
+                <div class="legend-item"><span class="legend-box box-token"></span> 👑 Portador do Token</div>
+                <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica</div>
+                <div class="legend-item"><span class="legend-box box-node"></span> 🔵 Nó do Cluster</div>
+            </div>
+            <div class="mermaid" id="mermaid-graph">graph TD
+    node1["node1 👑"]
+    node2["node2"] --> node1
+    node3["node3"] --> node1
+    node4["node4"] --> node1
+    node5["node5"] --> node1
+    style node1 fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff
+    style node2 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
+    style node3 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
+    style node4 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
+    style node5 fill:#2980b9,stroke:#fff,stroke-width:1px,color:#fff
+            </div>
+        </section>
+
+        <!-- PAINEL 2: LOGS AO VIVO -->
+        <section class="panel" id="logs-panel">
+            <h2>📋 Eventos do Protocolo</h2>
+            <div id="log-container"></div>
+        </section>
+
+        <!-- PAINEL 3: STATUS DOS NÓS -->
+        <section class="panel" id="nodes-panel">
+            <h2>💓 Participantes Ativos</h2>
+            <div id="nodes-container"><span class="node-badge">Aguardando participantes...</span></div>
+        </section>
+
+        <!-- PAINEL 4: LINHA DO TEMPO -->
+        <section class="panel" id="timeline-panel">
+            <h2>⏱️ Linha do Tempo de Sincronização</h2>
+            <div id="timeline-container"></div>
+        </section>
+
+        <!-- PAINEL 5: TRÁFEGO DE MENSAGENS -->
+        <section class="panel" id="attack-panel">
+            <h2>📈 Tráfego de Mensagens na Rede</h2>
+            <div class="chart-container"><canvas id="trafficChart"></canvas></div>
+            <div id="stats-bar">
+                <span>Total Msgs: <b id="total-msgs">0</b></span>
+                <span>Entradas SC: <b id="cs-entries-stat">0</b></span>
+                <span>Violações Mutex: <b id="overlap-stat" style="color: #2ecc71;">0</b></span>
+            </div>
+        </section>
+
+        <!-- PAINEL 6: MÉTRICAS CONCEITUAIS -->
+        <section class="panel" id="metrics-panel">
+            <h2>📊 Métricas Empíricas & de Singhal</h2>
+            <div id="metrics-container">
+                <div class="metric"><span>Msgs / Entrada</span><b id="msgs-per-cs">0.00</b></div>
+                <div class="metric"><span>Espera Mediana</span><b id="avg-rt">0 ms</b></div>
+                <div class="metric"><span>Tempo em SC</span><b id="avg-sd">0 ms</b></div>
+                <div class="metric"><span>Vazão</span><b id="throughput">0/s</b></div>
+                <div class="metric"><span>SC Concluídas</span><b id="cs-entries">0</b></div>
+            </div>
+        </section>
+
+        <!-- PAINEL 7: HEATMAP DE LATÊNCIA -->
+        <section class="panel" id="heatmap-panel">
+            <h2>🔥 Tempo de Espera Mediano por Nó (ms)</h2>
+            <div id="heatmap-container"><p>Aguardando medições...</p></div>
+        </section>
+    </main>
+
+    <script>
+        // ==============================================
+        // INICIALIZAÇÃO DO MERMAID E CHART.JS
+        // ==============================================
+        mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: true, curve: 'basis' } });
+
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        const trafficChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Msgs / seg',
+                    data: [],
+                    borderColor: '#00ffcc',
+                    backgroundColor: 'rgba(0,255,204,0.15)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // ==============================================
+        // ESTADO GLOBAL DA APLICAÇÃO
+        // ==============================================
+        let totalMessages = 0;
+        let csEntries = 0;
+        let overlapCount = 0;
+        let isRecording = false;
+
+        // Topologia Naimi-Tréhel
+        let currentFathers = {};     // { "node2": "node1", "node3": "node1", ... }
+        let currentTokenHolder = "node1";
+        let currentNodeInCS = null;
+        let knownNodes = new Set(["node1", "node2", "node3", "node4", "node5"]);
+
+        let nodeHeartbeats = {};
+        let nodeWaitTimes = {};      // { "node1": [120, 140, ...] }
+        let timelineEvents = [];
+
+        // Taxa de mensagens para o gráfico
+        let windowMsgs = 0;
+        setInterval(() => {
+            const now = new Date().toLocaleTimeString();
+            trafficChart.data.labels.push(now);
+            trafficChart.data.datasets[0].data.push(windowMsgs);
+            if (trafficChart.data.labels.length > 25) {
+                trafficChart.data.labels.shift();
+                trafficChart.data.datasets[0].data.shift();
+            }
+            trafficChart.update();
+            windowMsgs = 0;
+        }, 1000);
+
+        // ==============================================
+        // CONEXÃO WEBSOCKET
+        // ==============================================
+        let ws;
+        function connectWS() {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                const el = document.getElementById('global-status');
+                el.innerText = "ONLINE";
+                el.className = "status-online";
+                addLog("Conectado ao servidor de eventos do Cluster Sync.", "system");
+            };
+
+            ws.onclose = () => {
+                const el = document.getElementById('global-status');
+                el.innerText = "OFFLINE";
+                el.className = "status-disconnected";
+                setTimeout(connectWS, 2000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleIncomingEvent(data);
+                } catch (e) {
+                    console.error("Erro ao processar evento WebSocket:", e);
+                }
+            };
+        }
+        connectWS();
+
+        // ==============================================
+        // PROCESSAMENTO DE EVENTOS RECEBIDOS
+        // ==============================================
+        function handleIncomingEvent(data) {
+            totalMessages++;
+            windowMsgs++;
+            document.getElementById('total-msgs').innerText = totalMessages;
+
+            const sender = data.node_id || data.node || "sistema";
+            if (sender.startsWith("node")) {
+                knownNodes.add(sender);
+                nodeHeartbeats[sender] = Date.now();
+                renderNodes();
+            }
+
+            // 1. Atualizações de Topologia (Árvore e Token)
+            if (data.type === 'TOPOLOGY') {
+                if (data.edges) {
+                    data.edges.forEach(e => {
+                        if (e.to === null || e.to === "") {
+                            delete currentFathers[e.from];
+                        } else {
+                            currentFathers[e.from] = e.to;
+                            knownNodes.add(e.from);
+                            knownNodes.add(e.to);
+                        }
+                    });
+                }
+                if (data.token_holder) {
+                    currentTokenHolder = data.token_holder;
+                }
+                if (data.in_cs !== undefined) {
+                    currentNodeInCS = data.in_cs;
+                }
+                renderTopology();
+            }
+
+            // 2. Logs do Protocolo
+            if (data.type === 'LOG' || data.message) {
+                const msg = data.message || "";
+                let logClass = "info";
+
+                if (msg.includes("REV_PATH")) {
+                    logClass = "revpath";
+                    addTimeline("REV_PATH", msg.replace(/\[REV_PATH\s*\]/, "").trim(), sender);
+                } else if (msg.includes("TOKEN")) {
+                    logClass = "token";
+                    addTimeline("TOKEN", "Posse de Token transferida", sender);
+                    if (data.token_holder) currentTokenHolder = data.token_holder;
+                    renderTopology();
+                } else if (msg.includes("REQUEST")) {
+                    logClass = "request";
+                    addTimeline("REQUEST", "Requisição de CS", sender);
+                } else if (msg.includes("ENTER")) {
+                    logClass = "enter";
+                    currentNodeInCS = sender;
+                    addTimeline("ENTER", "Entrou na Seção Crítica", sender);
+                    renderTopology();
+                } else if (msg.includes("EXIT") || msg.includes("RELEASE")) {
+                    logClass = "exit";
+                    if (currentNodeInCS === sender) currentNodeInCS = null;
+                    renderTopology();
+                } else if (msg.includes("COMMITTED")) {
+                    logClass = "committed";
+                    csEntries++;
+                    document.getElementById('cs-entries').innerText = csEntries;
+                    document.getElementById('cs-entries-stat').innerText = csEntries;
+                }
+
+                addLog(`[${new Date().toLocaleTimeString()}] ${msg}`, logClass);
+            }
+
+            // 3. Eventos do Observer (BEGIN / END / VIOLAÇÃO)
+            if (data.type === 'OBSERVER') {
+                if (data.event === 'BEGIN') {
+                    currentNodeInCS = data.node_id;
+                    renderTopology();
+                } else if (data.event === 'END') {
+                    if (currentNodeInCS === data.node_id) currentNodeInCS = null;
+                    renderTopology();
+                }
+                if (data.overlap) {
+                    overlapCount++;
+                    document.getElementById('overlap-stat').innerText = overlapCount;
+                    document.getElementById('overlap-stat').style.color = '#e74c3c';
+                }
+            }
+
+            // 4. Métricas e Tempos de Espera
+            if (data.type === 'WAIT_TIME' && data.wait_ms !== undefined) {
+                if (!nodeWaitTimes[sender]) nodeWaitTimes[sender] = [];
+                nodeWaitTimes[sender].push(data.wait_ms);
+                renderHeatmap();
+                updateCalculatedMetrics();
+            }
+
+            // 5. Métricas Consolidadas vindas do backend
+            if (data.type === 'METRICS' && data.data) {
+                const m = data.data;
+                if (m.msgs_per_cs) document.getElementById('msgs-per-cs').innerText = m.msgs_per_cs;
+                if (m.avg_sd) document.getElementById('avg-sd').innerText = `${m.avg_sd} ms`;
+                if (m.avg_rt) document.getElementById('avg-rt').innerText = `${m.avg_rt} ms`;
+                if (m.throughput) document.getElementById('throughput').innerText = `${m.throughput}/s`;
+                if (m.cs_entries) {
+                    document.getElementById('cs-entries').innerText = m.cs_entries;
+                    document.getElementById('cs-entries-stat').innerText = m.cs_entries;
+                }
+            }
+        }
+
+        // ==============================================
+        // RENDERIZAÇÃO DA TOPOLOGIA MERMAID
+        // ==============================================
+        let renderTimeout = null;
+        function renderTopology() {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                let code = "graph TD\n";
+                const sortedNodes = Array.from(knownNodes).sort();
+
+                sortedNodes.forEach(nodeId => {
+                    let label = nodeId;
+                    if (nodeId === currentTokenHolder) label += " 👑";
+                    if (nodeId === currentNodeInCS) label += " ⚡[SC]";
+                    code += `    ${nodeId}["${label}"]\n`;
+                });
+
+                Object.keys(currentFathers).forEach(child => {
+                    const parent = currentFathers[child];
+                    if (parent && child !== parent) {
+                        code += `    ${child} -->|father| ${parent}\n`;
+                    }
+                });
+
+                code += "\n";
+                sortedNodes.forEach(nodeId => {
+                    if (nodeId === currentNodeInCS) {
+                        code += `    style ${nodeId} fill:#e67e22,stroke:#ffffff,stroke-width:3px,color:#fff\n`;
+                    } else if (nodeId === currentTokenHolder) {
+                        code += `    style ${nodeId} fill:#2ecc71,stroke:#f1c40f,stroke-width:3px,color:#fff\n`;
+                    } else {
+                        code += `    style ${nodeId} fill:#2980b9,stroke:#ffffff,stroke-width:1px,color:#fff\n`;
+                    }
+                });
+
+                const div = document.getElementById('mermaid-graph');
+                div.innerHTML = code;
+                div.removeAttribute('data-processed');
+                mermaid.run({ nodes: [div] });
+            }, 80);
+        }
+
+        // ==============================================
+        // HEATMAP DE ESPERA POR NÓ
+        // ==============================================
+        function renderHeatmap() {
+            const container = document.getElementById('heatmap-container');
+            const entries = Object.entries(nodeWaitTimes);
+            if (entries.length === 0) return;
+
+            const html = entries.sort().map(([nodeId, times]) => {
+                const sorted = [...times].sort((a,b) => a - b);
+                const median = sorted[Math.floor(sorted.length / 2)] || 0;
+                const intensity = Math.min(median / 4000, 1.0);
+                const color = `rgba(230, 126, 34, ${0.4 + intensity * 0.6})`;
+
+                return `
+                    <div class="heatmap-row">
+                        <span class="heatmap-node">${nodeId}</span>
+                        <div class="heatmap-bar" style="background: ${color}; width: ${Math.max(intensity * 100, 15)}%;">
+                            ${median.toFixed(1)} ms
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function updateCalculatedMetrics() {
+            const allWaits = Object.values(nodeWaitTimes).flat().sort((a,b) => a - b);
+            if (allWaits.length > 0) {
+                const median = allWaits[Math.floor(allWaits.length / 2)];
+                document.getElementById('avg-rt').innerText = `${median.toFixed(1)} ms`;
+            }
+            if (csEntries > 0) {
+                const msgsPerCs = (totalMessages / csEntries);
+                document.getElementById('msgs-per-cs').innerText = msgsPerCs.toFixed(2);
+            }
+        }
+
+        // ==============================================
+        // STATUS DOS NÓS
+        // ==============================================
+        function renderNodes() {
+            const now = Date.now();
+            const container = document.getElementById('nodes-container');
+            const sortedNodes = Array.from(knownNodes).sort();
+
+            const html = sortedNodes.map(nodeId => {
+                const lastTime = nodeHeartbeats[nodeId] || 0;
+                const elapsed = now - lastTime;
+                const status = (lastTime === 0 || elapsed > 15000) ? 'dead' : (elapsed > 5000 ? 'warning' : 'healthy');
+                const emoji = { healthy: '🟢', warning: '🟡', dead: '⚪' }[status];
+                return `<span class="node-badge node-${status}">${emoji} ${nodeId}</span>`;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+        setInterval(renderNodes, 2000);
+
+        // ==============================================
+        // LOGS E TIMELINE
+        // ==============================================
+        function addLog(msg, type = "info") {
+            const c = document.getElementById('log-container');
+            const d = document.createElement('div');
+            d.className = `log-entry log-${type}`;
+            d.innerText = msg;
+            c.prepend(d);
+            if (c.children.length > 120) c.removeChild(c.lastChild);
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '<div class="log-entry log-system">Logs limpos.</div>';
+        }
+
+        function addTimeline(type, desc, node) {
+            timelineEvents.push({ type, desc, node, time: new Date().toLocaleTimeString() });
+            if (timelineEvents.length > 15) timelineEvents.shift();
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const colors = {
+                'REQUEST': '#1abc9c',
+                'TOKEN': '#9b59b6',
+                'REV_PATH': '#f1c40f',
+                'ENTER': '#e67e22',
+                'EXIT': '#3498db',
+                'COMMITTED': '#2ecc71'
+            };
+            document.getElementById('timeline-container').innerHTML = timelineEvents.slice().reverse().map(e => `
+                <div class="timeline-item" style="border-left: 3px solid ${colors[e.type] || '#95a5a6'};">
+                    <div class="timeline-time">${e.time}</div>
+                    <div class="timeline-desc"><b>${e.node}</b>: ${e.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        // ==============================================
+        // GRAVAÇÃO E REPLAY DE SESSÕES
+        // ==============================================
+        async function toggleRecording() {
+            const btn = document.getElementById('record-btn');
+            if (!isRecording) {
+                await fetch('/replay/start-recording', { method: 'POST' });
+                isRecording = true;
+                btn.innerText = "⏹️ Parar Gravação";
+                btn.style.background = "#e74c3c";
+                addLog("[REPLAY] Gravação de sessão iniciada.", "system");
+            } else {
+                const r = await fetch('/replay/stop-recording', { method: 'POST' });
+                const d = await r.json();
+                isRecording = false;
+                btn.innerText = "⏺️ Gravar Sessão";
+                btn.style.background = "";
+                addLog(`[REPLAY] ${d.status} (${d.events} eventos registrados).`, "system");
+            }
+        }
+
+        async function showReplayMenu() {
+            try {
+                const r = await fetch('/replay/sessions');
+                const d = await r.json();
+                if (!d.sessions || d.sessions.length === 0) {
+                    alert("Nenhuma sessão gravada no diretório dashboard/sessions/.");
+                    return;
+                }
+                const choice = prompt("Sessões gravadas disponíveis:\n\n" + d.sessions.join("\n") + "\n\nDigite o ID da sessão que deseja reproduzir:");
+                if (choice) {
+                    const resp = await fetch(`/replay/${choice}`, { method: 'POST' });
+                    const resJson = await resp.json();
+                    addLog(`[REPLAY] ${resJson.status}`, "system");
+                }
+            } catch (e) {
+                alert("Erro ao consultar sessões: " + e);
+            }
+        }
+    </script>
+</body>
+</html>

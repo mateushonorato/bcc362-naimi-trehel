@@ -102,6 +102,11 @@ O custo médio $\mathcal{O}(\log N)$ do Naimi–Tréhel é **amortizado**: ele p
 │       ├── 03_efeito_localidade.png            # Economia de mensagens por reuso local do token (Carga Desigual)
 │       └── 04_overhead_rede_local_vs_nuvem.png # Comparativo de latência de espera: Local vs. Nuvem OCI
 ├── Dockerfile                      # Definição da imagem leve baseada em python:3.12-alpine
+├── dashboard/                      # Dashboard Web em tempo real para demonstração no seminário
+│   ├── server.py                   # Servidor FastAPI com WebSockets (/ws) e streaming de eventos (/event)
+│   ├── Dockerfile                  # Container do dashboard com FastAPI, Uvicorn e WebSockets
+│   ├── sessions/                   # Diretório para armazenamento e replay de sessões gravadas
+│   └── static/                     # Interface gráfica (index.html, style.css, Mermaid.js e Chart.js)
 ├── docker-compose.yml              # Orquestração local base com 5 nós, 5 clientes e 1 observador
 ├── docker-compose.ten-nodes.yml    # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
 ├── docker-compose.unequal.yml      # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
@@ -185,6 +190,16 @@ docker compose down --remove-orphans
 > ```bash
 > docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
 > ```
+
+### 5.4. Dashboard Web em Tempo Real (Demonstração Visual)
+
+O projeto inclui um painel web interativo para acompanhamento ao vivo da execução do protocolo (ideal para a demonstração prática de 8 minutos no seminário):
+
+- **Acesso pelo navegador:** [`http://localhost:8080`](http://localhost:8080)
+- **Topologia Dinâmica da Árvore (Mermaid.js):** visualização em tempo real da inversão dos ponteiros `father` e da posse do token (`has_token == True`).
+- **Linha do Tempo e Logs:** registro streaming de mensagens `REQUEST`, `TOKEN`, `REV_PATH`, `ENTER`, `EXIT` e `COMMITTED`.
+- **Métricas Instantâneas:** contadores de tráfego, taxa de mensagens por segundo (Chart.js), tempo de permanência na seção crítica e tempo de espera mediano por nó (Heatmap).
+- **Gravação e Replay de Sessões:** botões integrados para gravar uma rodada de teste e reproduzi-la offline durante os slides da apresentação.
 
 ---
 

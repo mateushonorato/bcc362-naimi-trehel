@@ -35,6 +35,7 @@ INITIAL_FATHER = os.environ.get("INITIAL_FATHER", "") or None
 HAS_TOKEN_INIT = os.environ.get("HAS_TOKEN", "false").lower() == "true"
 
 OBSERVER_URL  = os.environ.get("OBSERVER_URL", "http://observer:9000")
+DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://dashboard:8080")
 
 # SYNC_ENABLED: quando False, desativa o protocolo distribuído para o experimento
 # de prova de instrumentação (disabled_sync), permitindo sobreposições propositais.
@@ -114,6 +115,45 @@ class NaimiTrehelNode:
                     target=self._sender_worker, args=(peer_id, q), daemon=True
                 )
                 t.start()
+
+        # Fila assíncrona não-bloqueante para envio de eventos ao Dashboard Web
+        self.dashboard_queue = queue.Queue(maxsize=1000)
+        if DASHBOARD_URL:
+            t = threading.Thread(target=self._dashboard_worker, daemon=True)
+            t.start()
+            # Notifica topologia inicial ao Dashboard Web
+            if self.father:
+                self.notify_dashboard("TOPOLOGY", {"edges": [{"from": NODE_ID, "to": self.father}]})
+            if self.has_token:
+                self.notify_dashboard("TOPOLOGY", {"token_holder": NODE_ID})
+
+    def _dashboard_worker(self):
+        """Worker em background que envia telemetria ao Dashboard sem bloquear o protocolo."""
+        while True:
+            payload = self.dashboard_queue.get()
+            try:
+                body = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{DASHBOARD_URL}/event", data=body,
+                    headers={"Content-Type": "application/json"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=1.0) as resp:
+                    resp.read()
+            except Exception:
+                pass
+            finally:
+                self.dashboard_queue.task_done()
+
+    def notify_dashboard(self, event_type, payload):
+        """Enfileira evento para o Dashboard Web (não bloqueante, O(1), descarta se cheio)."""
+        if not DASHBOARD_URL:
+            return
+        item = {"type": event_type, "node_id": NODE_ID, **payload}
+        try:
+            self.dashboard_queue.put_nowait(item)
+        except queue.Full:
+            pass
 
     # -----------------------------------------------------------------------
     # Envio de mensagens de protocolo
@@ -238,6 +278,8 @@ class NaimiTrehelNode:
                 target = self.father
                 self.father = None
                 self.token_event.clear()
+                self.notify_dashboard("TOPOLOGY", {"edges": [{"from": NODE_ID, "to": None}]})
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] REQUEST {request_id} -> enviado para {target}"})
                 self.send_async(
                     target, "/protocol/request",
                     {"requester": NODE_ID, "request_id": request_id}
@@ -245,6 +287,7 @@ class NaimiTrehelNode:
             else:
                 # Este nó já é a raiz (tem o token): acesso imediato.
                 self.token_event.set()
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] REQUEST {request_id} -> posse local do token (0 msgs)"})
 
         # Aguarda a chegada do TOKEN (ou o set() imediato acima).
         self.token_event.wait()
@@ -281,6 +324,8 @@ class NaimiTrehelNode:
                 next_node = self.next_queue.pop(0)
                 self.has_token = False
                 self.token_event.clear()
+                self.notify_dashboard("TOPOLOGY", {"token_holder": next_node})
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] RELEASE -> token enviado para {next_node}"})
                 self.log_event("RELEASE", request_id, f"-> enviando token para {next_node}")
                 self.send_async(
                     next_node, "/protocol/token",
@@ -288,6 +333,7 @@ class NaimiTrehelNode:
                 )
             else:
                 # Nenhum solicitante pendente: retém o token localmente
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] RELEASE -> mantendo token local"})
                 self.log_event("RELEASE", request_id, "-> mantendo token local")
 
     # -----------------------------------------------------------------------
@@ -339,6 +385,8 @@ class NaimiTrehelNode:
 
             # REVERSÃO DE CAMINHOS: redireciona father para o solicitante original
             self.father = requester
+            self.notify_dashboard("TOPOLOGY", {"edges": [{"from": NODE_ID, "to": requester}]})
+            self.notify_dashboard("LOG", {"message": f"[REV_PATH ] node={NODE_ID} | father: {prev_father} -> {self.father}"})
             print(
                 f"[REV_PATH ] node={NODE_ID} | req_from={requester} "
                 f"| father: {prev_father} -> {self.father} | next={self.next_queue}",
@@ -354,6 +402,8 @@ class NaimiTrehelNode:
         with self.state_lock:
             self.has_token = True
             self.token_event.set()
+            self.notify_dashboard("TOPOLOGY", {"token_holder": NODE_ID})
+            self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] TOKEN recebido de {sender}"})
             self.log_event("TOKEN_RECV", request_id, f"<- recebido de {sender}")
 
     # -----------------------------------------------------------------------
@@ -383,12 +433,18 @@ class NaimiTrehelNode:
             try:
                 self.log_event("ENTER", request_id)
                 self.notify_observer("BEGIN", request_id)
+                self.notify_dashboard("TOPOLOGY", {"in_cs": NODE_ID})
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] ENTER seção crítica ({request_id})"})
                 time.sleep(random.uniform(CS_MIN_SLEEP, CS_MAX_SLEEP))  # simula acesso a R
                 self.notify_observer("END", request_id)
                 self.log_event("EXIT", request_id)
+                self.notify_dashboard("TOPOLOGY", {"in_cs": None})
+                self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] EXIT seção crítica ({request_id})"})
             finally:
                 self.release(resource, request_id)
             self.log_event("COMMITTED", request_id)
+            self.notify_dashboard("LOG", {"message": f"[{NODE_ID}] COMMITTED {request_id} (espera={wait_ms:.2f}ms)"})
+            self.notify_dashboard("WAIT_TIME", {"wait_ms": wait_ms})
             return wait_ms
 
 
