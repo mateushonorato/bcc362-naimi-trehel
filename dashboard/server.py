@@ -19,9 +19,11 @@ import asyncio
 import json
 import os
 import random
+import socket
 import subprocess
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
@@ -39,17 +41,61 @@ os.makedirs(SESSIONS_DIR, exist_ok=True)
 current_scale = 5
 
 
+def get_host_project_dir() -> str:
+    """Detecta dinamicamente o diretório do projeto no host (sem caminhos hardcoded)."""
+    # 1. Se explicitamente configurado pelo usuário, respeita
+    env_dir = os.environ.get("HOST_PROJECT_DIR")
+    if env_dir:
+        return env_dir
+
+    # 2. Se estiver rodando dentro do container Docker com docker.sock montado,
+    # consulta o Docker daemon para descobrir onde o diretório /app está montado no Host.
+    if os.environ.get("RUNNING_IN_DOCKER"):
+        hostname = os.environ.get("HOSTNAME", socket.gethostname())
+        try:
+            cmd = f'docker inspect {hostname} --format "{{{{ range .Mounts }}}}{{{{ if eq .Destination \\"/app\\" }}}}{{{{ .Source }}}}{{{{ end }}}}{{{{ end }}}}"'
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+
+            cmd_label = f'docker inspect {hostname} --format "{{{{ index .Config.Labels \\"com.docker.compose.project.working_dir\\" }}}}"'
+            res_label = subprocess.run(cmd_label, shell=True, capture_output=True, text=True, timeout=5)
+            if res_label.returncode == 0 and res_label.stdout.strip():
+                return res_label.stdout.strip()
+        except Exception as e:
+            print(f"[WARN] Falha ao autodetectar HOST_PROJECT_DIR via docker inspect: {e}", flush=True)
+
+    # 3. Fallback: diretório raiz do projeto no filesystem (execução fora do Docker)
+    return str(Path(__file__).resolve().parent.parent)
+
+
+def get_docker_project_name() -> str:
+    """Detecta o nome do projeto Docker Compose dos nós existentes (ex: sd2)."""
+    try:
+        cmd = 'docker ps -a --filter "name=node1" --format "{{.Label \\"com.docker.compose.project\\"}}"'
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
+        if lines:
+            return lines[0]
+    except Exception:
+        pass
+    return ""
+
+
 def set_cluster_scale_containers(scale: int):
-    """Sobe ou para contêineres node6..node10 via Docker Compose."""
-    host_project_dir = os.environ.get("HOST_PROJECT_DIR", "/home/mateus/dev/sd2")
+    """Sobe ou para contêineres node6..node10 via Docker Compose dinamicamente."""
+    host_project_dir = get_host_project_dir()
     compose_f1 = "/app/docker-compose.yml" if os.path.exists("/app/docker-compose.yml") else "docker-compose.yml"
     compose_f2 = "/app/docker-compose.ten-nodes.yml" if os.path.exists("/app/docker-compose.ten-nodes.yml") else "docker-compose.ten-nodes.yml"
-    proj_dir_arg = f"--project-directory {host_project_dir}" if os.environ.get("RUNNING_IN_DOCKER") else ""
+
+    proj_dir_arg = f"--project-directory {host_project_dir}" if host_project_dir else ""
+    proj_name = get_docker_project_name()
+    proj_name_arg = f"-p {proj_name}" if proj_name else ""
 
     if scale == 10:
-        cmd = f"docker compose -f {compose_f1} -f {compose_f2} {proj_dir_arg} up -d node6 node7 node8 node9 node10"
+        cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} up -d node6 node7 node8 node9 node10"
     else:
-        cmd = f"docker compose -f {compose_f1} -f {compose_f2} {proj_dir_arg} stop -t 1 node6 node7 node8 node9 node10"
+        cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} stop -t 1 node6 node7 node8 node9 node10"
 
     print(f"[SCALE] Executing: {cmd}", flush=True)
     res = subprocess.run(cmd, shell=True, capture_output=True, text=True)

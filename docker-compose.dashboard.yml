@@ -10,7 +10,6 @@ services:
     environment:
       PORT: "8080"
       RUNNING_IN_DOCKER: "true"
-      HOST_PROJECT_DIR: "/home/mateus/dev/sd2"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/app
