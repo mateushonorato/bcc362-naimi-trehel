@@ -331,7 +331,7 @@ O confronto entre as métricas coletadas e a fundamentação teórica de Naimi�
 - **Eficácia da Prova de Instrumentação:** No teste com sincronização desabilitada (`disabled_sync`), o observador registrou **48 sobreposições** (com até 5 processos simultâneos na SC) em 5 nós e **99 sobreposições** (com até 10 processos simultâneos na SC) em 10 nós. Isso comprova que a ausência de violações nos testes coordenados não decorre de artefatos temporais ou desacoplamento dos clientes, mas da eficácia real do protocolo.
 - **Isolamento Concorrente Absoluto:** Em todas as **18 rodadas coordenadas** (totalizando 1.350 entradas em seção crítica), registrou-se **rigorosamente 0 violações** de exclusão mútua (`overlap_events = 0`) e concorrência máxima de exatamente 1 (`max_concurrent = 1`).
 
-#### 2. Conformidade com a Complexidade Logarítmica $\mathcal{O}(\log N)$
+#### 2. Conformidade com a Complexidade Logarítmica — O(log N)
 O número teórico de mensagens por entrada no algoritmo de Naimi–Tréhel é delimitado pela soma harmônica $H_{N-1} = \sum_{i=1}^{N-1} \frac{1}{i}$ para o encaminhamento do `Request` ao longo dos ponteiros `father`, somada a exatamente **1 mensagem** para o repasse direto do `Token` do portador ao solicitante:
 $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
 
@@ -417,22 +417,18 @@ Os testes distribuídos foram executados em um cluster de **3 máquinas virtuais
 
 A comparação direta entre os dados coletados no host de desenvolvimento (Local) e o cluster real de 3 máquinas virtuais na nuvem (Oracle Cloud) permite validar três propriedades fundamentais de sistemas distribuídos:
 
-```text
-+------------------------------------------------------------------------------------------------+
-|                         COMPARATIVO DE COMPLEXIDADE DE MENSAGENS                               |
-+--------------------------+---------------------+-----------------------+-----------------------+
-| Cenário                  | Topologia           | Local (Docker)        | Nuvem OCI (Swarm)     |
-+--------------------------+---------------------+-----------------------+-----------------------+
-| Carga Normal             | 5 nós               | 2.86 msgs/entrada     | 2.86 msgs/entrada     |
-| Carga Normal             | 10 nós              | 3.53 msgs/entrada     | 3.47 msgs/entrada     |
-| Alta Contenção           | 5 nós               | 2.94 msgs/entrada     | 3.13 msgs/entrada     |
-| Alta Contenção           | 10 nós              | 3.67 msgs/entrada     | 3.53 msgs/entrada     |
-| Carga Desigual           | 5 nós               | 2.58 msgs/entrada     | 2.40 msgs/entrada     |
-| Carga Desigual           | 10 nós              | 3.48 msgs/entrada     | 3.55 msgs/entrada     |
-+--------------------------+---------------------+-----------------------+-----------------------+
-```
+#### Tabela Comparativa de Complexidade de Mensagens
 
-#### 1. Invariância Topológica do Número de Mensagens ($\mathcal{O}(\log N)$)
+| Cenário de Teste | Topologia | Local (Docker Compose) | Nuvem OCI (Docker Swarm) | Variação (Δ) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Carga Normal** | 5 nós | 2.86 msgs/entrada | 2.86 msgs/entrada | **0.00** |
+| **Carga Normal** | 10 nós | 3.53 msgs/entrada | 3.47 msgs/entrada | -0.06 |
+| **Alta Contenção** | 5 nós | 2.94 msgs/entrada | 3.13 msgs/entrada | +0.19 |
+| **Alta Contenção** | 10 nós | 3.67 msgs/entrada | 3.53 msgs/entrada | -0.14 |
+| **Carga Desigual** | 5 nós | 2.58 msgs/entrada | 2.40 msgs/entrada | -0.18 |
+| **Carga Desigual** | 10 nós | 3.48 msgs/entrada | 3.55 msgs/entrada | +0.07 |
+
+#### 1. Invariância Topológica do Número de Mensagens — O(log N)
 - Observa-se uma **equivalência quase exata** no número de mensagens de protocolo por entrada entre o ambiente local e a nuvem:
   - Em 5 nós: **2.86 msgs/entrada** (Local) vs. **2.86 msgs/entrada** (Nuvem) em carga normal.
   - Em 10 nós: **3.53 msgs/entrada** (Local) vs. **3.47 msgs/entrada** (Nuvem) em carga normal.
@@ -455,6 +451,6 @@ A comparação direta entre os dados coletados no host de desenvolvimento (Local
 
 ## 8. Referências Bibliográficas
 
-1. **Naimi, M., Tréhel, M., & Arnold, A. (1996).** *A $\log(N)$ Distributed Mutual Exclusion Algorithm Based on Path Reversal.* Journal of Parallel and Distributed Computing, 34(1), 1–13. https://doi.org/10.1006/jpdc.1996.0041
+1. **Naimi, M., Tréhel, M., & Arnold, A. (1996).** *A Log(N) Distributed Mutual Exclusion Algorithm Based on Path Reversal.* Journal of Parallel and Distributed Computing, 34(1), 1–13. https://doi.org/10.1006/jpdc.1996.0041
 2. **Raymond, K. (1989).** *A Tree-Based Algorithm for Distributed Mutual Exclusion.* ACM Transactions on Computer Systems, 7(1), 61–77. https://doi.org/10.1109/12.24268
 3. **Singhal, M. (1993).** *A taxonomy of distributed mutual exclusion algorithms.* Journal of Parallel and Distributed Computing, 18(1), 94–101.
