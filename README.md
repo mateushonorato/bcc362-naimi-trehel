@@ -87,8 +87,11 @@ Considere $N$ processos participantes no Cluster Sync:
 ├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel, canais FIFO e telemetria de espera)
 ├── observer.py                # Verificador passivo de exclusão mútua (eventos BEGIN/END e endpoint /stats)
 ├── collect_metrics.py         # Script de automação para execução, repetições e coleta estruturada de métricas
-├── metrics_results.json       # Base de dados JSON consolidada com os resultados das execuções empíricas
-├── metrics_results.csv        # Base de dados CSV consolidada para análise e geração de gráficos
+├── results/                   # Diretório de métricas e dados experimentais consolidados
+│   ├── metrics_results_local.csv   # Tabela CSV consolidada das execuções locais (Compose)
+│   ├── metrics_results_local.json  # Base JSON completa com telemetria detalhada (Local)
+│   ├── metrics_results_swarm.csv   # Tabela CSV consolidada das execuções em nuvem (OCI Swarm)
+│   └── metrics_results_swarm.json  # Base JSON completa com telemetria detalhada (Nuvem)
 ├── Dockerfile                 # Definição da imagem leve baseada em python:3.12-alpine
 ├── docker-compose.yml         # Orquestração local base com 5 nós, 5 clientes e 1 observador
 ├── docker-compose-10nodes.yml # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
@@ -248,6 +251,11 @@ usage: collect_metrics.py [-h] [--mode {local,swarm}] [--nodes {5,10,both}]
                           [--append] [--json-out JSON_OUT] [--csv-out CSV_OUT]
 ```
 
+> [!TIP]
+> Os dados coletados são salvos automaticamente no diretório `results/`:
+> - **Modo local (`--mode local`):** `results/metrics_results_local.csv` e `results/metrics_results_local.json`
+> - **Modo nuvem (`--mode swarm`):** `results/metrics_results_swarm.csv` e `results/metrics_results_swarm.json`
+
 #### Comandos de Execução Rápida
 
 - **Executar benchmark completo local (5 e 10 nós, todos os testes, 3 repetições):**
@@ -283,7 +291,7 @@ Os experimentos locais reportados abaixo foram executados no seguinte ambiente d
 
 Foram executadas **20 rodadas de teste**, contemplando a prova de instrumentação, carga normal, alta contenção e carga desigual para topologias de 5 e 10 nós, com 3 repetições independentes com sementes distintas (`52`, `62` e `72`).
 
-#### Tabela Consolidada de Execuções Locais (`metrics_results.csv`)
+#### Tabela Consolidada de Execuções Locais (`results/metrics_results_local.csv`)
 
 | Experimento | Topologia | Rep. | Semente | Reqs/Cliente | Total Esperado | Total Concluído | Violações de Mutex | Máx. Concorrente | Tempo Total (s) | Mensagens Protocolo | Mensagens / Entrada | Espera Mediana (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -373,7 +381,7 @@ Os testes distribuídos foram executados em um cluster de **3 máquinas virtuais
   - *Cenário de 5 nós (11 contêineres):* VM 1 = 3 contêineres (`observer`, `node1`, `client1`); VM 2 = 4 contêineres (`node2`, `node3`, `client2`, `client3`); VM 3 = 4 contêineres (`node4`, `node5`, `client4`, `client5`).
   - *Cenário de 10 nós (21 contêineres):* Distribuição perfeitamente simétrica **7 / 7 / 7** contêineres por VM via composição com `docker-stack-10nodes.yml`.
 
-#### Tabela Consolidada de Execuções em Nuvem (`metrics_results.csv`)
+#### Tabela Consolidada de Execuções em Nuvem (`results/metrics_results_swarm.csv`)
 
 | Experimento | Topologia | Rep. | Semente | Reqs/Cliente | Total Concluído | Violações de Mutex | Máx. Concorrente | Tempo Total (s) | Mensagens Protocolo | Mensagens / Entrada | Espera Mediana (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |

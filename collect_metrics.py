@@ -217,6 +217,12 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
         stop_cluster(mode, nodes, exp_name)
 
 def export_results(all_results, json_path, csv_path):
+    # Garante a existência do diretório de destino
+    for p in (json_path, csv_path):
+        parent = os.path.dirname(p)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
     # Exporta JSON
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=2, ensure_ascii=False)
@@ -265,10 +271,15 @@ def main():
     parser.add_argument("--repetitions", type=int, default=3, help="Número de repetições por experimento (default: 3)")
     parser.add_argument("--requests", type=int, default=10, help="Quantidade de requisições por cliente (default: 10)")
     parser.add_argument("--append", action="store_true", help="Acrescenta aos resultados existentes em vez de sobrescrever")
-    parser.add_argument("--json-out", default="metrics_results.json", help="Arquivo JSON de saída (default: metrics_results.json)")
-    parser.add_argument("--csv-out", default="metrics_results.csv", help="Arquivo CSV de saída (default: metrics_results.csv)")
+    parser.add_argument("--json-out", default=None, help="Arquivo JSON de saída (default: results/metrics_results_<mode>.json)")
+    parser.add_argument("--csv-out", default=None, help="Arquivo CSV de saída (default: results/metrics_results_<mode>.csv)")
 
     args = parser.parse_args()
+
+    default_json = f"results/metrics_results_{args.mode}.json"
+    default_csv = f"results/metrics_results_{args.mode}.csv"
+    json_out = args.json_out if args.json_out is not None else default_json
+    csv_out = args.csv_out if args.csv_out is not None else default_csv
 
     # Define quais nós rodar
     node_list = [5, 10] if args.nodes == "both" else [int(args.nodes)]
@@ -280,9 +291,9 @@ def main():
         exp_list = args.experiments
 
     results = []
-    if args.append and os.path.exists(args.json_out):
+    if args.append and os.path.exists(json_out):
         try:
-            with open(args.json_out, "r", encoding="utf-8") as f:
+            with open(json_out, "r", encoding="utf-8") as f:
                 results = json.load(f)
         except Exception:
             results = []
@@ -339,7 +350,7 @@ def main():
                 )
                 results.append(res)
                 # Salva incrementalmente para não perder dados se for interrompido
-                export_results(results, args.json_out, args.csv_out)
+                export_results(results, json_out, csv_out)
 
     print_summary_table(results)
 
