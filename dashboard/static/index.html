@@ -38,6 +38,7 @@
         .dot-healthy { background: #2ecc71; box-shadow: 0 0 5px rgba(46, 204, 113, 0.7); }
         .dot-warning { background: #f39c12; box-shadow: 0 0 5px rgba(243, 156, 18, 0.7); }
         .dot-dead { background: #7f8c8d; }
+        .dot-violation { background: #e74c3c; box-shadow: 0 0 7px rgba(231, 76, 60, 0.9); }
         #mermaid-graph svg { max-width: 100%; height: auto; }
     </style>
 </head>
@@ -175,6 +176,7 @@
                 <div class="legend-item"><span class="legend-dot dot-healthy"></span> 🟢 Ativo (&lt; 2s)</div>
                 <div class="legend-item"><span class="legend-dot dot-warning"></span> 🟡 Ocioso (2–6s)</div>
                 <div class="legend-item"><span class="legend-dot dot-dead"></span> ⚪ Inativo (&gt; 6s)</div>
+                <div class="legend-item"><span class="legend-dot dot-violation"></span> 🔴 Violação SC (Múltiplos)</div>
             </div>
             <div id="nodes-container"><span class="node-badge">Aguardando participantes...</span></div>
         </section>
@@ -803,31 +805,38 @@
                 const lastTime = nodeHeartbeats[nodeId] || 0;
                 const elapsed = now - lastTime;
                 const inCS = currentNodesInCS.has(nodeId);
+                const isViolation = inCS && currentNodesInCS.size > 1;
                 const hasToken = (nodeId === currentTokenHolder);
 
                 let status = 'dead';
-                if (inCS) {
-                    status = 'healthy';
+                let emoji = '⚪';
+                let roleSuffix = '';
+
+                if (isViolation) {
+                    status = 'violation';
+                    emoji = '🔴';
+                    roleSuffix = ' <small style="color:#ff4444; font-weight:bold;">⚠️ (VIOLAÇÃO SC)</small>';
+                } else if (inCS) {
+                    status = 'in-cs';
+                    emoji = '⚡';
+                    roleSuffix = ' <small style="color:#f39c12; font-weight:bold;">(SC)</small>';
                 } else if (lastTime > 0) {
                     if (elapsed <= 2000) {
                         status = 'healthy';
+                        emoji = '🟢';
                     } else if (elapsed <= 6000) {
                         status = 'warning';
+                        emoji = '🟡';
                     } else {
                         status = 'dead';
+                        emoji = '⚪';
                     }
+                } else {
+                    status = 'dead';
+                    emoji = '⚪';
                 }
 
-                let emoji = { healthy: '🟢', warning: '🟡', dead: '⚪' }[status];
-                let roleSuffix = '';
-                if (inCS) {
-                    if (currentNodesInCS.size > 1) {
-                        emoji = '⚠️';
-                        roleSuffix = ' <small style="color:#ff4444; font-weight:bold;">(SC)</small>';
-                    } else {
-                        roleSuffix = ' <small style="color:#f39c12; font-weight:bold;">(SC)</small>';
-                    }
-                } else if (hasToken) {
+                if (!inCS && hasToken) {
                     roleSuffix = ' <small title="Portador do Token">👑</small>';
                 }
 
