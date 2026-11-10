@@ -36,7 +36,8 @@
         }
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .dot-healthy { background: #2ecc71; box-shadow: 0 0 5px rgba(46, 204, 113, 0.7); }
-        .dot-warning { background: #f39c12; box-shadow: 0 0 5px rgba(243, 156, 18, 0.7); }
+        .dot-warning { background: #f1c40f; box-shadow: 0 0 5px rgba(241, 196, 15, 0.7); }
+        .dot-cs { background: #ff6600; box-shadow: 0 0 6px rgba(255, 102, 0, 0.85); }
         .dot-dead { background: #7f8c8d; }
         .dot-violation { background: #e74c3c; box-shadow: 0 0 7px rgba(231, 76, 60, 0.9); }
         #mermaid-graph svg { max-width: 100%; height: auto; }
@@ -175,8 +176,9 @@
             <div class="nodes-legend">
                 <div class="legend-item"><span class="legend-dot dot-healthy"></span> 🟢 Ativo (&lt; 2s)</div>
                 <div class="legend-item"><span class="legend-dot dot-warning"></span> 🟡 Ocioso (2–6s)</div>
-                <div class="legend-item"><span class="legend-dot dot-dead"></span> ⚪ Inativo (&gt; 6s)</div>
+                <div class="legend-item"><span class="legend-dot dot-cs"></span> ⚡ Na SC (Exclusivo)</div>
                 <div class="legend-item"><span class="legend-dot dot-violation"></span> 🔴 Violação SC (Múltiplos)</div>
+                <div class="legend-item"><span class="legend-dot dot-dead"></span> ⚪ Inativo (&gt; 6s)</div>
             </div>
             <div id="nodes-container"><span class="node-badge">Aguardando participantes...</span></div>
         </section>
@@ -819,7 +821,7 @@
                 } else if (inCS) {
                     status = 'in-cs';
                     emoji = '⚡';
-                    roleSuffix = ' <small style="color:#f39c12; font-weight:bold;">(SC)</small>';
+                    roleSuffix = ' <small style="color:#ffaa55; font-weight:bold;">(SC)</small>';
                 } else if (lastTime > 0) {
                     if (elapsed <= 2000) {
                         status = 'healthy';

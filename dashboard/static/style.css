@@ -153,7 +153,8 @@ main {
     display: inline-block;
 }
 .dot-healthy { background: #2ecc71; box-shadow: 0 0 6px rgba(46, 204, 113, 0.7); }
-.dot-warning { background: #f39c12; box-shadow: 0 0 6px rgba(243, 156, 18, 0.7); }
+.dot-warning { background: #f1c40f; box-shadow: 0 0 6px rgba(241, 196, 15, 0.7); }
+.dot-cs { background: #ff6600; box-shadow: 0 0 7px rgba(255, 102, 0, 0.85); }
 .dot-dead { background: #7f8c8d; }
 .dot-violation { background: #e74c3c; box-shadow: 0 0 8px rgba(231, 76, 60, 0.9); }
 
@@ -175,10 +176,10 @@ main {
     box-shadow: 0 0 8px rgba(46, 204, 113, 0.25);
 }
 .node-warning {
-    background: rgba(243, 156, 18, 0.2);
-    border: 1px solid #f39c12;
-    color: #f39c12;
-    box-shadow: 0 0 8px rgba(243, 156, 18, 0.2);
+    background: rgba(241, 196, 15, 0.15);
+    border: 1px solid #f1c40f;
+    color: #f1c40f;
+    box-shadow: 0 0 6px rgba(241, 196, 15, 0.2);
 }
 .node-dead {
     background: rgba(127, 140, 141, 0.15);
@@ -186,10 +187,10 @@ main {
     color: #95a5a6;
 }
 .node-in-cs {
-    background: rgba(230, 126, 34, 0.25);
-    border: 1px solid #e67e22;
-    color: #f39c12;
-    box-shadow: 0 0 8px rgba(230, 126, 34, 0.4);
+    background: rgba(255, 102, 0, 0.28);
+    border: 2px solid #ff6600;
+    color: #ffaa55;
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
 }
 .node-violation {
     background: rgba(192, 57, 43, 0.35);
