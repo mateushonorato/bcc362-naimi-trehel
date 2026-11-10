@@ -103,8 +103,10 @@ Os serviços podem ser configurados via variáveis de ambiente no `docker-compos
 | `CLIENT_ID` | `client` | `client1` | Identificador único do cliente gerador de carga. |
 | `TARGET_URL` | `client` | `http://node1:8000` | Endereço do único elemento do Cluster Sync conhecido pelo cliente. |
 | `NUM_REQUESTS` | `client` | `10` | Quantidade de acessos de escrita solicitados pelo cliente ($10$ a $50$). |
-| `CLIENT_MIN_SLEEP` / `CLIENT_MAX_SLEEP` | `client` | `1.0` / `5.0` | Tempo de espera aleatório (em segundos) entre pedidos consecutivos do cliente. |
+| `CLIENT_MIN_SLEEP` / `CLIENT_MAX_SLEEP` | `client` | `1.0` / `5.0` | Tempo de espera aleatório (em segundos) entre pedidos consecutivos dos clientes. |
+| `CLIENT1_MIN_SLEEP` / `CLIENT1_MAX_SLEEP` | `client` | `1.0` / `5.0` | Permite sobrepor individualmente o intervalo do `client1` para o experimento de carga desigual. |
 | `RANDOM_SEED` | `client` | `42` | Semente para reprodutibilidade dos intervalos aleatórios nos experimentos. |
+| `CLIENT_TIMEOUT` | `client` | `300.0` | Timeout limite (em segundos) da requisição HTTP do cliente antes de retentar. |
 
 ---
 
@@ -189,28 +191,72 @@ docker stack rm clustersync
 
 ## 7. Roteiro de Experimentos e Evidências de Sincronização
 
-Abaixo estão os comandos para reproduzir os cenários exigidos na Seção 7 do TP2:
+Abaixo estão os comandos e roteiros detalhados para reproduzir os cenários exigidos na Seção 7 do TP2, cobrindo tanto a **execução local (Docker Compose)** quanto a **execução em nuvem (Docker Swarm — Oracle Cloud Infrastructure)**:
 
 ### 7.1. Prova de Instrumentação (Sincronização Desabilitada)
-Executa o sistema com `SYNC_ENABLED=false` e sem intervalo entre pedidos para comprovar que o observador detecta acessos simultâneos (`[VIOLACAO] Sobreposicao detectada!`):
-```bash
-SYNC_ENABLED=false CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker compose up
-```
-Ao consultar `curl -s http://localhost:9000/stats`, verifica-se `overlap_events > 0` e `max_concurrent > 1`.
+Comprova que o observador é um verificador passivo confiável capaz de acusar colisões (`[VIOLACAO] Sobreposicao detectada!`) quando a coordenação distribuída é desligada (`SYNC_ENABLED=false`):
+
+- **Local (Docker Compose):**
+  ```bash
+  SYNC_ENABLED=false CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker compose up
+  ```
+- **Nuvem (Docker Swarm na VM1 Manager):**
+  ```bash
+  SYNC_ENABLED=false CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker stack deploy -c docker-stack.yml clustersync
+  ```
+- **Resultado esperado em `/stats`:** `overlap_events > 0` e `max_concurrent > 1`, provando que o observador detecta acessos concorrentes reais e que não atua como autorizador ou mutex.
+
+---
 
 ### 7.2. Experimento 1 — Carga Normal
-5 clientes, 10 a 50 acessos por cliente, com espera de $1\text{ a }5\text{ s}$ entre pedidos e seção crítica de $0{,}2\text{ a }1\text{ s}$:
-```bash
-SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker compose up
-```
-**Resultado esperado em `/stats`:** `total_completed: 100`, `overlap_events: 0`, `max_concurrent: 1`.
+Cenário de referência com 5 clientes, 20 pedidos por cliente, espera padrão de $1\text{ a }5\text{ s}$ entre pedidos e seção crítica simulada de $0{,}2\text{ a }1{,}0\text{ s}$:
+
+- **Local (Docker Compose):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker compose up
+  ```
+- **Nuvem (Docker Swarm na VM1 Manager):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker stack deploy -c docker-stack.yml clustersync
+  ```
+- **Resultado esperado:**
+  - Em `http://localhost:9000/stats`: `total_completed: 100`, `overlap_events: 0`, `max_concurrent: 1`.
+  - Em cada nó (`/status`): tempos medianos de espera balanceados e número reduzido de mensagens de protocolo.
+
+---
 
 ### 7.3. Experimento 2 — Alta Contenção
-Remove o `sleep` entre pedidos dos clientes (`CLIENT_MIN_SLEEP=0`, `CLIENT_MAX_SLEEP=0`), forçando disputa contínua pelo token e exercitando intensivamente a fila `next_queue` e a reversão de caminhos:
-```bash
-SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker compose up
-```
-**Resultado esperado em `/stats`:** `total_completed: 100`, `overlap_events: 0`, `max_concurrent: 1`, com redução no número médio de mensagens de protocolo por aquisição devido ao achatamento da árvore e ao enfileiramento direto em `next_queue`.
+Remove o intervalo entre requisições dos clientes (`CLIENT_MIN_SLEEP=0` e `CLIENT_MAX_SLEEP=0`), forçando disputa contínua pelo recurso $R$ e exercitando intensamente o enfileiramento na `next_queue`:
+
+- **Local (Docker Compose):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker compose up
+  ```
+- **Nuvem (Docker Swarm na VM1 Manager):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=0 CLIENT_MAX_SLEEP=0 docker stack deploy -c docker-stack.yml clustersync
+  ```
+- **Resultado esperado:**
+  - Rigorosa garantia de exclusão mútua (`overlap_events: 0`, `max_concurrent: 1`).
+  - Redução no número médio de mensagens de protocolo por entrada: a árvore lógica dinâmica achata-se rapidamente via reversão de caminhos (*path reversal*), e pedidos subsequentes são repassados diretamente ao detentor ou enfileirados em $\mathcal{O}(1)$ na raiz.
+
+---
+
+### 7.4. Experimento 3 — Carga Desigual (Fairness e Prioridade)
+Avalia a justiça do algoritmo configurando um dos clientes (`client1`) para solicitar o recurso $R$ com frequência muito superior (`CLIENT1_MIN_SLEEP=0.1` e `CLIENT1_MAX_SLEEP=0.3`), enquanto os demais clientes (`client2` a `client5`) mantêm o ritmo normal (`CLIENT_MIN_SLEEP=1.0` e `CLIENT_MAX_SLEEP=5.0`):
+
+- **Local (Docker Compose):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT1_MIN_SLEEP=0.1 CLIENT1_MAX_SLEEP=0.3 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker compose up
+  ```
+- **Nuvem (Docker Swarm na VM1 Manager):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT1_MIN_SLEEP=0.1 CLIENT1_MAX_SLEEP=0.3 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker stack deploy -c docker-stack.yml clustersync
+  ```
+- **Discussão teórica e evidências de justiça:**
+  - **Ausência de Starvation:** O nó mais frequente (`node1`) não monopoliza o recurso indefinidamente. Quando nós menos frequentes (`node2`–`node5`) solicitam $R$, seus pedidos sobem pela árvore de ponteiros `father` e são anexados à fila `next_queue`.
+  - **Repasse Obrigatório:** Ao finalizar a seção crítica em `release()`, o nó detentor é estritamente obrigado a transferir o token para o primeiro elemento da `next_queue`, assegurando que requisições esparsas sejam atendidas com prioridade posicional justa.
+  - **Distribuição e Espera:** Consultando `curl -s http://localhost:<porta>/status`, observa-se que `node1` acumula aquisições mais rápido, porém a mediana de tempo de espera dos outros nós permanece limitada ao tempo determinístico de esvaziamento da fila FIFO.
 
 ---
 
