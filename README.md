@@ -82,9 +82,11 @@ Considere $N$ processos no Cluster Sync:
 ├── node.py              # Nó do Cluster Sync (Protocolo Naimi-Tréhel, canais FIFO e telemetria)
 ├── observer.py          # Verificador passivo de exclusão mútua (eventos BEGIN/END e /stats)
 ├── Dockerfile           # Definição da imagem leve baseada em python:3.12-alpine
-├── docker-compose.yml   # Orquestração local com 5 nós, 5 clientes e 1 observador
-├── docker-stack.yml     # Orquestração distribuída para Docker Swarm (3 VMs na Oracle Cloud)
-└── README.md            # Documentação do projeto
+├── docker-compose.yml        # Orquestração local com 5 nós, 5 clientes e 1 observador
+├── docker-compose-10nodes.yml  # Orquestração local expandida com 10 nós e 10 clientes (experimento de escala)
+├── docker-stack.yml          # Orquestração para Docker Swarm com 5 nós (3 VMs na Oracle Cloud)
+├── docker-stack-10nodes.yml  # Orquestração para Docker Swarm com 10 nós (3 VMs na Oracle Cloud)
+└── README.md                 # Documentação do projeto
 ```
 
 ---
@@ -257,6 +259,34 @@ Avalia a justiça do algoritmo configurando um dos clientes (`client1`) para sol
   - **Ausência de Starvation:** O nó mais frequente (`node1`) não monopoliza o recurso indefinidamente. Quando nós menos frequentes (`node2`–`node5`) solicitam $R$, seus pedidos sobem pela árvore de ponteiros `father` e são anexados à fila `next_queue`.
   - **Repasse Obrigatório:** Ao finalizar a seção crítica em `release()`, o nó detentor é estritamente obrigado a transferir o token para o primeiro elemento da `next_queue`, assegurando que requisições esparsas sejam atendidas com prioridade posicional justa.
   - **Distribuição e Espera:** Consultando `curl -s http://localhost:<porta>/status`, observa-se que `node1` acumula aquisições mais rápido, porém a mediana de tempo de espera dos outros nós permanece limitada ao tempo determinístico de esvaziamento da fila FIFO.
+
+---
+
+### 7.5. Experimento 4 — Quantidade de Participantes (Escala com 10 Processos)
+Atende diretamente à exigência da Seção 7 do TP2 (*"Comparar 5 e 10 processos do Cluster Sync, quando viável. Relacionar espera e tráfego ao crescimento do número de participantes"*). Executa 10 nós (`node1`–`node10`) e 10 clientes (`client1`–`client10`), totalizando 21 contêineres:
+
+- **Local (Docker Compose — 10 Nós):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker compose -f docker-compose-10nodes.yml up
+  ```
+- **Nuvem (Docker Swarm — 10 Nós distribuídos nas 3 VMs):**
+  ```bash
+  SYNC_ENABLED=true NUM_REQUESTS=20 CLIENT_MIN_SLEEP=1.0 CLIENT_MAX_SLEEP=5.0 docker stack deploy -c docker-stack-10nodes.yml clustersync
+  ```
+- **Inspecionar métricas dos 10 nós:**
+  ```bash
+  # Observador (espera 200 acessos concluídos com 0 violações):
+  curl -s http://localhost:9000/stats
+
+  # Métricas dos 10 nós (portas 8001 a 8010):
+  for port in $(seq 8001 8010); do
+    echo "=== Porta $port ==="
+    curl -s http://localhost:$port/status | grep -E "node_id|protocol_msgs_sent|median_wait_ms"
+  done
+  ```
+- **Discussão teórica e comprovação de $\mathcal{O}(\log N)$:**
+  - **Eficiência sob Escala:** Ao duplicar o número de participantes de $N=5$ para $N=10$, o custo médio de mensagens por aquisição de token não dobra (como ocorreria no Token Ring com $\mathcal{O}(N)$), mas cresce de forma logarítmica proporcional a $\log_2(N)$ ($\approx 2{,}32 \rightarrow 3{,}32$).
+  - **Achatamento Dinâmico:** A circulação e reversão de arestas mantêm os caminhos curtos mesmo com 10 participantes concorrendo intensamente.
 
 ---
 
