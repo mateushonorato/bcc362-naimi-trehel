@@ -26,6 +26,18 @@
         .log-enter { border-left-color: #e67e22; color: #e67e22; font-weight: bold; }
         .log-exit { border-left-color: #3498db; color: #3498db; }
         .log-committed { border-left-color: #2ecc71; color: #2ecc71; }
+        .nodes-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 0.78em;
+            margin-bottom: 10px;
+            color: #bbb;
+            flex-wrap: wrap;
+        }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot-healthy { background: #2ecc71; box-shadow: 0 0 5px rgba(46, 204, 113, 0.7); }
+        .dot-warning { background: #f39c12; box-shadow: 0 0 5px rgba(243, 156, 18, 0.7); }
+        .dot-dead { background: #7f8c8d; }
         #mermaid-graph svg { max-width: 100%; height: auto; }
     </style>
 </head>
@@ -159,6 +171,11 @@
         <!-- PAINEL 3: STATUS DOS NÓS -->
         <section class="panel" id="nodes-panel">
             <h2>💓 Participantes Ativos</h2>
+            <div class="nodes-legend">
+                <div class="legend-item"><span class="legend-dot dot-healthy"></span> 🟢 Ativo (&lt; 2s)</div>
+                <div class="legend-item"><span class="legend-dot dot-warning"></span> 🟡 Ocioso (2–6s)</div>
+                <div class="legend-item"><span class="legend-dot dot-dead"></span> ⚪ Inativo (&gt; 6s)</div>
+            </div>
             <div id="nodes-container"><span class="node-badge">Aguardando participantes...</span></div>
         </section>
 
@@ -509,6 +526,13 @@
                     if (s.topology.known_nodes) {
                         knownNodes = new Set(s.topology.known_nodes);
                     }
+                    const nowInit = Date.now();
+                    knownNodes.forEach(n => {
+                        if (!nodeHeartbeats[n]) nodeHeartbeats[n] = nowInit;
+                    });
+                    Object.keys(nodeHeartbeats).forEach(n => {
+                        if (!knownNodes.has(n)) delete nodeHeartbeats[n];
+                    });
                 }
                 if (s.metrics) {
                     totalMessages = s.metrics.total_messages || 0;
@@ -536,6 +560,9 @@
                     clearLogs();
                     dismissViolationBanner();
                     currentNodesInCS.clear();
+                    const nowReset = Date.now();
+                    knownNodes.forEach(n => { nodeHeartbeats[n] = nowReset; });
+                    renderNodes();
                     const ovStat = document.getElementById('overlap-stat');
                     if (ovStat) ovStat.style.color = '#2ecc71';
                 }
@@ -586,18 +613,25 @@
                             delete currentFathers[e.from];
                         } else {
                             currentFathers[e.from] = e.to;
-                            knownNodes.add(e.from);
-                            knownNodes.add(e.to);
+                            if (e.from && e.from.startsWith("node")) { knownNodes.add(e.from); nodeHeartbeats[e.from] = Date.now(); }
+                            if (e.to && e.to.startsWith("node")) { knownNodes.add(e.to); nodeHeartbeats[e.to] = Date.now(); }
                         }
                     });
                 }
                 if (data.token_holder) {
                     currentTokenHolder = data.token_holder;
+                    if (data.token_holder.startsWith("node")) {
+                        nodeHeartbeats[data.token_holder] = Date.now();
+                    }
                 }
                 if (data.in_cs !== undefined) {
                     updateNodesInCS(data.in_cs);
+                    if (Array.isArray(data.in_cs)) {
+                        data.in_cs.forEach(n => { if (n.startsWith("node")) nodeHeartbeats[n] = Date.now(); });
+                    }
                 }
                 renderTopology();
+                renderNodes();
             }
 
             // 2. Fila Distribuída (next_queue)
@@ -605,9 +639,17 @@
                 const node = data.node || data.node_id;
                 const q = data.next_queue || [];
                 if (node) {
-                    if (q.length > 0) currentNextQueues[node] = q;
-                    else delete currentNextQueues[node];
+                    if (node.startsWith("node")) nodeHeartbeats[node] = Date.now();
+                    if (q.length > 0) {
+                        currentNextQueues[node] = q;
+                        q.forEach(nextN => {
+                            if (nextN.startsWith("node")) nodeHeartbeats[nextN] = Date.now();
+                        });
+                    } else {
+                        delete currentNextQueues[node];
+                    }
                     renderTopology();
+                    renderNodes();
                 }
             }
 
@@ -644,12 +686,18 @@
             if (data.type === 'OBSERVER') {
                 if (data.active_nodes) {
                     currentNodesInCS = new Set(data.active_nodes);
+                    data.active_nodes.forEach(n => {
+                        if (n && n.startsWith("node")) nodeHeartbeats[n] = Date.now();
+                    });
                 } else if (data.event === 'BEGIN') {
                     currentNodesInCS.add(data.node_id);
+                    if (data.node_id && data.node_id.startsWith("node")) nodeHeartbeats[data.node_id] = Date.now();
                 } else if (data.event === 'END') {
                     currentNodesInCS.delete(data.node_id);
+                    if (data.node_id && data.node_id.startsWith("node")) nodeHeartbeats[data.node_id] = Date.now();
                 }
                 renderTopology();
+                renderNodes();
                 if (data.overlap) {
                     overlapCount++;
                     const ovStat = document.getElementById('overlap-stat');
@@ -743,6 +791,8 @@
         function renderNodes() {
             const now = Date.now();
             const container = document.getElementById('nodes-container');
+            if (!container) return;
+
             const sortedNodes = Array.from(knownNodes).sort((a,b) => {
                 const na = parseInt(a.replace('node',''), 10) || 0;
                 const nb = parseInt(b.replace('node',''), 10) || 0;
@@ -752,14 +802,41 @@
             const html = sortedNodes.map(nodeId => {
                 const lastTime = nodeHeartbeats[nodeId] || 0;
                 const elapsed = now - lastTime;
-                const status = (lastTime === 0 || elapsed > 15000) ? 'dead' : (elapsed > 5000 ? 'warning' : 'healthy');
-                const emoji = { healthy: '🟢', warning: '🟡', dead: '⚪' }[status];
-                return `<span class="node-badge node-${status}">${emoji} ${nodeId}</span>`;
+                const inCS = currentNodesInCS.has(nodeId);
+                const hasToken = (nodeId === currentTokenHolder);
+
+                let status = 'dead';
+                if (inCS) {
+                    status = 'healthy';
+                } else if (lastTime > 0) {
+                    if (elapsed <= 2000) {
+                        status = 'healthy';
+                    } else if (elapsed <= 6000) {
+                        status = 'warning';
+                    } else {
+                        status = 'dead';
+                    }
+                }
+
+                let emoji = { healthy: '🟢', warning: '🟡', dead: '⚪' }[status];
+                let roleSuffix = '';
+                if (inCS) {
+                    if (currentNodesInCS.size > 1) {
+                        emoji = '⚠️';
+                        roleSuffix = ' <small style="color:#ff4444; font-weight:bold;">(SC)</small>';
+                    } else {
+                        roleSuffix = ' <small style="color:#f39c12; font-weight:bold;">(SC)</small>';
+                    }
+                } else if (hasToken) {
+                    roleSuffix = ' <small title="Portador do Token">👑</small>';
+                }
+
+                return `<span class="node-badge node-${status}">${emoji} ${nodeId}${roleSuffix}</span>`;
             }).join('');
 
-            container.innerHTML = html;
+            container.innerHTML = html || '<span class="node-badge">Aguardando participantes...</span>';
         }
-        setInterval(renderNodes, 2000);
+        setInterval(renderNodes, 300);
 
         // ==============================================
         // LOGS E TIMELINE

@@ -138,17 +138,52 @@ main {
 .log-system { border-left-color: #bdc3c7; color: #bdc3c7; font-style: italic; }
 
 /* Status dos Nós */
-.node-badge {
-    display: inline-block;
-    padding: 5px 10px;
-    border-radius: 15px;
-    margin: 3px;
-    font-size: 0.8em;
-    font-weight: bold;
+.nodes-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 0.78em;
+    margin-bottom: 10px;
+    color: #bbb;
+    flex-wrap: wrap;
 }
-.node-healthy { background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; }
-.node-warning { background: rgba(243, 156, 18, 0.2); border: 1px solid #f39c12; }
-.node-dead { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; }
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.dot-healthy { background: #2ecc71; box-shadow: 0 0 6px rgba(46, 204, 113, 0.7); }
+.dot-warning { background: #f39c12; box-shadow: 0 0 6px rgba(243, 156, 18, 0.7); }
+.dot-dead { background: #7f8c8d; }
+
+.node-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 15px;
+    margin: 4px;
+    font-size: 0.82em;
+    font-weight: bold;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.node-healthy {
+    background: rgba(46, 204, 113, 0.2);
+    border: 1px solid #2ecc71;
+    color: #2ecc71;
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.25);
+}
+.node-warning {
+    background: rgba(243, 156, 18, 0.2);
+    border: 1px solid #f39c12;
+    color: #f39c12;
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.2);
+}
+.node-dead {
+    background: rgba(127, 140, 141, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #95a5a6;
+}
 
 /* Timeline */
 #timeline-container { max-height: 250px; overflow-y: auto; }
