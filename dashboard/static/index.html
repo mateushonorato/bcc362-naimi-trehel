@@ -125,7 +125,7 @@
     <!-- BANNER DE ALERTA DE VIOLAÇÃO DE EXCLUSÃO MÚTUA (PROVA DE INSTRUMENTAÇÃO) -->
     <div id="violation-banner" class="violation-alert" style="display: none;">
         <span>🚨 <b>Violação de Exclusão Mútua Detectada!</b> Múltiplos processos entraram simultaneamente na Seção Crítica (Sincronização Desabilitada).</span>
-        <button style="margin-left: auto; background: none; border: none; color: white; cursor: pointer; font-size: 1.1em;" onclick="document.getElementById('violation-banner').style.display='none'">✖</button>
+        <button style="margin-left: auto; background: none; border: none; color: white; cursor: pointer; font-size: 1.1em;" onclick="dismissViolationBanner()">✖</button>
     </div>
 
     <main>
@@ -281,6 +281,27 @@
         let nodeHeartbeats = {};
         let nodeWaitTimes = {};
         let timelineEvents = [];
+
+        // Efeito Sonoro de Alarme para Violações de Exclusão Mútua
+        const alarmSound = new Audio('/static/alarm.wav');
+        alarmSound.volume = 0.5;
+        let alarmCooldown = false;
+
+        function triggerAlarmSound() {
+            if (!alarmCooldown) {
+                alarmCooldown = true;
+                alarmSound.currentTime = 0;
+                alarmSound.play().catch(e => console.log("Áudio bloqueado por autoplay policy:", e));
+                setTimeout(() => { alarmCooldown = false; }, 2000);
+            }
+        }
+
+        function dismissViolationBanner() {
+            const banner = document.getElementById('violation-banner');
+            if (banner) banner.style.display = 'none';
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+        }
 
         // Modo Replay
         let isReplayMode = false;
@@ -493,8 +514,7 @@
                     });
                 } else if (data.type === 'RESET') {
                     clearLogs();
-                    const banner = document.getElementById('violation-banner');
-                    if (banner) banner.style.display = 'none';
+                    dismissViolationBanner();
                     const ovStat = document.getElementById('overlap-stat');
                     if (ovStat) ovStat.style.color = '#2ecc71';
                 }
@@ -617,6 +637,7 @@
                     }
                     const banner = document.getElementById('violation-banner');
                     if (banner) banner.style.display = 'flex';
+                    triggerAlarmSound();
                 }
             }
 
@@ -829,8 +850,7 @@
                 const numReqs = parseInt(document.getElementById('req-count').value, 10) || 5;
 
                 if (scenario !== 'disabled') {
-                    const banner = document.getElementById('violation-banner');
-                    if (banner) banner.style.display = 'none';
+                    dismissViolationBanner();
                 }
 
                 const resp = await fetch('/api/workload/start', {
