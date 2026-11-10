@@ -80,7 +80,7 @@ def update_cluster_state(body: dict):
             cluster_state["topology"]["in_cs"] = body["in_cs"]
 
     elif event_type == "QUEUE":
-        node = body.get("node")
+        node = body.get("node") or body.get("node_id")
         q = body.get("next_queue", [])
         if node:
             if "next_queues" not in cluster_state["topology"]:
@@ -293,11 +293,12 @@ async def start_workload(request: Request):
     workload_status["completed"] = 0
 
     if scenario == "step":
-        target = body.get("node_id", "node1")
-        workload_status["total"] = 1
-        workload_status["message"] = f"Executando passo unitário: {target}"
-        t = asyncio.create_task(run_node_workload(target, f"demo-{target}", 1, 0, 0))
-        workload_tasks.append(t)
+        targets = body.get("nodes") or [body.get("node_id", "node1")]
+        workload_status["total"] = len(targets)
+        workload_status["message"] = f"Executando passo: {', '.join(targets)}"
+        for target in targets:
+            t = asyncio.create_task(run_node_workload(target, f"demo-{target}", 1, 0, 0))
+            workload_tasks.append(t)
 
     elif scenario == "contention":
         nodes = ["node1", "node2", "node3", "node4", "node5"]

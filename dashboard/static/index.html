@@ -100,6 +100,8 @@
             <button class="btn-node-step" onclick="triggerManualStep('node3')">⚡ Nó 3</button>
             <button class="btn-node-step" onclick="triggerManualStep('node4')">⚡ Nó 4</button>
             <button class="btn-node-step" onclick="triggerManualStep('node5')">⚡ Nó 5</button>
+            <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nó 3 e Nó 5 (Gera Fila FIFO)</button>
+            <button class="btn-node-step" style="border-color: #f97316; color: #f97316;" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
         </div>
 
         <button class="btn-success" id="btn-run-workload" onclick="toggleWorkload()">▶️ Iniciar Teste</button>
@@ -212,6 +214,7 @@
             startOnLoad: false,
             theme: 'dark',
             securityLevel: 'loose',
+            suppressErrorRendering: true,
             flowchart: { useMaxWidth: true, curve: 'basis' }
         });
 
@@ -315,7 +318,7 @@
                 // Arestas da Árvore de Busca (father)
                 Object.keys(currentFathers).forEach(child => {
                     const parent = currentFathers[child];
-                    if (parent && child !== parent) {
+                    if (parent && child !== parent && knownNodes.has(parent) && knownNodes.has(child)) {
                         code += `    ${child} -->|father| ${parent}\n`;
                     }
                 });
@@ -327,7 +330,9 @@
                     if (q.length > 0) {
                         let prev = node;
                         q.forEach(nextN => {
-                            code += `    ${prev} -.->|next (fila)| ${nextN}\n`;
+                            if (knownNodes.has(prev) && knownNodes.has(nextN)) {
+                                code += `    ${prev} -.->|next| ${nextN}\n`;
+                            }
                             queueNodesText.push(`${prev} ➜ ${nextN}`);
                             prev = nextN;
                         });
@@ -346,6 +351,16 @@
                     }
                 });
 
+                // Atualiza o texto da fila distribuída IMEDIATAMENTE (antes da renderização gráfica)
+                const qDisplay = document.getElementById('queue-display');
+                if (qDisplay) {
+                    if (queueNodesText.length > 0) {
+                        qDisplay.innerHTML = `<span style="color: #f97316; font-weight: bold;">${queueNodesText.join(" &nbsp;|&nbsp; ")}</span>`;
+                    } else {
+                        qDisplay.innerText = "Fila vazia (Nenhum nó aguardando)";
+                    }
+                }
+
                 const uniqueId = `mermaid-svg-${++renderId}`;
                 const { svg } = await mermaid.render(uniqueId, code);
                 const container = document.getElementById('mermaid-graph');
@@ -353,18 +368,10 @@
                     container.innerHTML = svg;
                 }
 
-                // Atualiza o texto da fila distribuída
-                const qDisplay = document.getElementById('queue-display');
-                if (qDisplay) {
-                    if (queueNodesText.length > 0) {
-                        qDisplay.innerHTML = `<span style="color: #f97316; font-weight: bold;">${queueNodesText.join(" | ")}</span>`;
-                    } else {
-                        qDisplay.innerText = "Fila vazia (Nenhum nó aguardando)";
-                    }
-                }
-
             } catch (err) {
                 console.error("Erro na renderização do Mermaid:", err);
+                // Remove qualquer div de erro residual injetada pelo Mermaid no body
+                document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
             } finally {
                 isRenderingMermaid = false;
                 if (queuedRender) {
@@ -504,7 +511,7 @@
 
             // 2. Fila Distribuída (next_queue)
             if (data.type === 'QUEUE') {
-                const node = data.node;
+                const node = data.node || data.node_id;
                 const q = data.next_queue || [];
                 if (node) {
                     if (q.length > 0) currentNextQueues[node] = q;
@@ -722,6 +729,14 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ scenario: 'step', node_id: nodeId })
+            });
+        }
+
+        async function triggerConcurrentContest(nodes) {
+            await fetch('/api/workload/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenario: 'step', nodes: nodes })
             });
         }
 

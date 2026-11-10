@@ -10,6 +10,8 @@ services:
     environment:
       PORT: "8080"
       RUNNING_IN_DOCKER: "true"
+    volumes:
+      - ./dashboard:/app/dashboard
 
 networks:
   default:
