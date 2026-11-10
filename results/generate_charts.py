@@ -344,10 +344,10 @@ def plot_cross_comparison():
                          xytext=(0, 3), textcoords="offset points",
                          ha="center", va="bottom", fontsize=8.5, fontweight="bold")
 
-    # Destaque do Overhead VXLAN na Alta Contenção de 10 nós
+    # Destaque do Overhead VXLAN na Alta Contenção de 10 nós (com espaçamento limpo)
     delta_vxlan = swm_10[1] - loc_10[1]
     ax2.annotate(f"+{delta_vxlan:.1f} ms\n(Overhead VXLAN/RTT)",
-                 xy=(x[1] + width/2, swm_10[1]), xytext=(x[1] + width/2 + 0.15, swm_10[1] - 800),
+                 xy=(x[1] + width/2, 5400), xytext=(x[1] + width + 0.12, 5200),
                  arrowprops=dict(arrowstyle="->", color="#b85d00", lw=1.2),
                  bbox=dict(boxstyle="round,pad=0.3", fc="#fff3e0", ec="#ffb74d", alpha=0.95),
                  fontsize=8.5, fontweight="bold", color="#a03b00")
@@ -356,7 +356,7 @@ def plot_cross_comparison():
     ax2.set_ylabel("Tempo de Espera Mediano (ms)")
     ax2.set_xticks(x)
     ax2.set_xticklabels(scenarios, fontsize=9.5, fontweight="bold")
-    ax2.set_ylim(0, 6800)
+    ax2.set_ylim(0, 7200)
     ax2.legend(loc="upper left", fontsize=9)
 
     fig.suptitle("Comparativo Cruzado de Latência: Efeito do RTT e Encapsulamento VXLAN", fontsize=13, y=1.02, fontweight="bold")

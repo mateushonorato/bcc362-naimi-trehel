@@ -464,11 +464,17 @@ A comparação direta entre os dados coletados no host de desenvolvimento (Local
 - **Fundamentação:** Isso valida que a complexidade de mensagens do algoritmo de Naimi–Tréhel é uma propriedade **puramente lógica e topológica**, dependente unicamente do grafo em árvore e da sequência estocástica de pedidos, mantendo-se rigorosamente invariante independentemente da infraestrutura física subjacente.
 
 #### 2. Efeito do RTT Real e Encapsulamento de Rede VXLAN
-- Enquanto no ambiente local a comunicação ocorre via ponte de software (`bridge`) com latência na ordem de microssegundos ($< 0{,}1\text{ ms}$), na nuvem os pacotes transitam pelas interfaces físicas das instâncias OCI e passam pela camada de encapsulamento **VXLAN (UDP 4789)** da rede `overlay` do Docker Swarm.
-- **Impacto no Tempo de Espera Mediano (Alta Contenção - 10 nós):**
-  - Local: **5.317,99 ms**
-  - Nuvem: **5.704,11 ms** (+386,12 ms)
-  - O aumento de ~386 ms na fila com 10 participantes sob contenção contínua reflete diretamente o custo cumulativo do Round-Trip Time (RTT) e do processamento de rede nas 3 VMs distintas à medida que `REQUEST` e `TOKEN` percorrem múltiplos nós físicos.
+- **Diferença Estrutural de Comunicação:** Enquanto no ambiente local a comunicação ocorre via ponte de software (`bridge`) em memória RAM com latência quase nula ($< 0{,}05\text{ ms}$), na nuvem os pacotes transitam pelas interfaces físicas das 3 instâncias OCI e passam pela camada de encapsulamento **VXLAN (UDP 4789)** da rede `overlay` do Docker Swarm.
+- **Por que o Overhead só se Manifesta Expressivamente em 10 Nós?**
+  - **Serialização Cumulativa na Fila Cheia (Alta Contenção):**
+    - Em *Carga Normal*, a fila `next_queue` quase sempre está vazia ou contém apenas 1 nó, de modo que o RTT de rede não se acumula.
+    - Em *Alta Contenção com 10 nós*, a fila permanece permanentemente cheia com os **9 nós concorrentes**. Como a concessão da Seção Crítica é estritamente sequencial, o atraso de rede (RTT físico + encapsulamento VXLAN) não é paralelo, mas **serializado ao longo dos 9 predecessores**:
+      $$\Delta T_{\text{espera}} = \sum_{k=1}^{9} \left( \text{RTT}_{\text{inter-VM}}^{(k)} + \text{Overhead}_{\text{VXLAN}}^{(k)} \right) \approx +386{,}12\text{ ms}$$
+    - Isso elevou a espera mediana de **5.317,99 ms** (Local) para **5.704,11 ms** (Nuvem OCI).
+  - **Tráfego Cruzado Inter-VM Contínuo (Carga Desigual):**
+    - Em *Carga Desigual com 10 nós*, o tráfego em rajada gerado por `client1` na VM1 exigiu sucessivas trocas de mensagens com os outros 9 nós distribuídos nas VMs 2 e 3, gerando um acréscimo de **$+350{,}21\text{ ms}$** na nuvem (**2.445,04 ms** no Local vs. **2.795,25 ms** na Nuvem).
+  - **Contraste com a Topologia de 5 Nós:**
+    - Em 5 nós, cerca de $40\%$ dos contêineres estavam co-alocados na mesma VM (comunicação intra-host sem trânsito externo) e a fila sob contenção possuía apenas 4 predecessores, tornando o atraso cumulativo insignificante diante do tempo de serviço na SC.
 
 <p align="center">
   <img src="results/charts/04_overhead_rede_local_vs_nuvem.png" alt="Comparativo de Latência de Espera: Local vs. Nuvem OCI" width="850">
