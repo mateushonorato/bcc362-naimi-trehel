@@ -83,8 +83,8 @@ Considere $N$ processos participantes no Cluster Sync:
 ### Arquivos do Projeto
 ```text
 .
-├── client.py                  # Gerador de carga dos clientes (agnóstico, lê parâmetros padrão de ambiente)
-├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel P2P, canais FIFO e telemetria de espera)
+├── client.py                  # Gerador de carga dos clientes (pedidos sequenciais com sleep parametrizável)
+├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel, canais FIFO e telemetria de espera)
 ├── observer.py                # Verificador passivo de exclusão mútua (eventos BEGIN/END e endpoint /stats)
 ├── collect_metrics.py         # Script de automação para execução, repetições e coleta estruturada de métricas
 ├── metrics_results.json       # Base de dados JSON consolidada com os resultados das execuções empíricas
@@ -103,7 +103,7 @@ Considere $N$ processos participantes no Cluster Sync:
 
 ## 4. Parâmetros e Variáveis de Ambiente
 
-As configurações dos serviços podem ser ajustadas via variáveis de ambiente no Compose, Stack ou através do `collect_metrics.py`. Todos os clientes e nós são completamente agnósticos e utilizam a mesma interface padrão:
+As configurações dos serviços podem ser ajustadas via variáveis de ambiente no Compose, Stack ou através do `collect_metrics.py`. Todos os clientes e nós utilizam a mesma interface padrão:
 
 | Variável | Serviço | Padrão | Descrição |
 | :--- | :---: | :---: | :--- |
