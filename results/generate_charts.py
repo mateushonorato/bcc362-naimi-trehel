@@ -76,7 +76,7 @@ swarm_data = load_averages(SWARM_CSV)
 # GRÁFICO 1: Conformidade com a Complexidade Teórica O(log N) de Naimi-Tréhel
 # ==============================================================================
 def plot_complexity():
-    fig, ax = plt.subplots(figsize=(8.5, 5.2))
+    fig, ax = plt.subplots(figsize=(8.8, 5.4))
 
     # Curva teórica Naimi-Tréhel: H_{N-1} + 1
     nodes_range = np.arange(2, 13)
@@ -87,8 +87,7 @@ def plot_complexity():
             label=r"Cota Superior Harmônica Teórica: $\bar{M}(N) = H_{N-1} + 1$", zorder=3)
 
     # Área sombreada delimitando a região sub-harmônica válida
-    ax.fill_between(nodes_range, 0, harmonic_upper, color="#1f4e79", alpha=0.08,
-                    label="Região Teórica Sub-Harmônica (Naimi–Tréhel)")
+    ax.fill_between(nodes_range, 0, harmonic_upper, color="#1f4e79", alpha=0.08, zorder=1)
 
     # Dados medidos locais (Médias das 3 repetições)
     # 5 nós
@@ -101,33 +100,46 @@ def plot_complexity():
     mpe_10_high = local_data[("high_contention", 10)]["avg_mpe"]
     mpe_10_uneq = local_data[("unequal_load", 10)]["avg_mpe"]
 
-    # Scatter points para cada cenário com marcadores e cores acadêmicas distintas
-    ax.scatter([5, 10], [mpe_5_norm, mpe_10_norm], color="#2e7d32", s=90, marker="s",
-               label=f"Carga Normal (5: {mpe_5_norm:.2f} | 10: {mpe_10_norm:.2f})", zorder=5)
-    ax.scatter([5, 10], [mpe_5_high, mpe_10_high], color="#d95f02", s=100, marker="D",
-               label=f"Alta Contenção (5: {mpe_5_high:.2f} | 10: {mpe_10_high:.2f})", zorder=5)
-    ax.scatter([5, 10], [mpe_5_uneq, mpe_10_uneq], color="#7570b3", s=90, marker="^",
-               label=f"Carga Desigual (5: {mpe_5_uneq:.2f} | 10: {mpe_10_uneq:.2f})", zorder=5)
+    # Deslocamento horizontal simétrico (jitter) para evitar sobreposição entre marcadores próximos
+    dx = {"uneq": -0.16, "norm": 0.0, "high": 0.16}
 
-    # Anotações nas cotas teóricas de 5 e 10 nós
+    ax.scatter(5 + dx["uneq"], mpe_5_uneq, color="#7570b3", s=85, marker="^",
+               label=f"Carga Desigual (5: {mpe_5_uneq:.2f} | 10: {mpe_10_uneq:.2f})", zorder=5)
+    ax.scatter(5 + dx["norm"], mpe_5_norm, color="#2e7d32", s=85, marker="s",
+               label=f"Carga Normal (5: {mpe_5_norm:.2f} | 10: {mpe_10_norm:.2f})", zorder=5)
+    ax.scatter(5 + dx["high"], mpe_5_high, color="#d95f02", s=95, marker="D",
+               label=f"Alta Contenção (5: {mpe_5_high:.2f} | 10: {mpe_10_high:.2f})", zorder=5)
+
+    ax.scatter(10 + dx["uneq"], mpe_10_uneq, color="#7570b3", s=85, marker="^", zorder=5)
+    ax.scatter(10 + dx["norm"], mpe_10_norm, color="#2e7d32", s=85, marker="s", zorder=5)
+    ax.scatter(10 + dx["high"], mpe_10_high, color="#d95f02", s=95, marker="D", zorder=5)
+
+    # Rótulo numérico individual junto a cada marcador para máxima clareza
+    for xv, yv in [(5 + dx["uneq"], mpe_5_uneq), (5 + dx["norm"], mpe_5_norm), (5 + dx["high"], mpe_5_high),
+                   (10 + dx["uneq"], mpe_10_uneq), (10 + dx["norm"], mpe_10_norm), (10 + dx["high"], mpe_10_high)]:
+        ax.annotate(f"{yv:.2f}", (xv, yv), textcoords="offset points",
+                    xytext=(0, -14 if yv < 2.7 else 6),
+                    ha="center", fontsize=8, fontweight="bold", color="#222")
+
+    # Anotações nas cotas teóricas de 5 e 10 nós posicionadas sem colisões
     h4 = sum(1.0 / i for i in range(1, 5)) + 1.0  # 3.083
     h9 = sum(1.0 / i for i in range(1, 10)) + 1.0 # 3.829
 
     ax.annotate(f"Cota $H_4 + 1 \\approx {h4:.2f}$\n(Máx. medido: {max(mpe_5_norm, mpe_5_high, mpe_5_uneq):.2f})",
-                xy=(5, h4), xytext=(3.4, 3.75),
+                xy=(5, h4), xytext=(2.9, 3.4),
                 arrowprops=dict(arrowstyle="->", color="#1f4e79", lw=1.2),
                 bbox=dict(boxstyle="round,pad=0.35", fc="#eef4fa", ec="#1f4e79", alpha=0.95),
-                fontsize=9, fontweight="bold")
+                fontsize=8.5, fontweight="bold")
 
     ax.annotate(f"Cota $H_9 + 1 \\approx {h9:.2f}$\n(Máx. medido: {max(mpe_10_norm, mpe_10_high, mpe_10_uneq):.2f})",
                 xy=(10, h9), xytext=(7.8, 4.3),
                 arrowprops=dict(arrowstyle="->", color="#1f4e79", lw=1.2),
                 bbox=dict(boxstyle="round,pad=0.35", fc="#eef4fa", ec="#1f4e79", alpha=0.95),
-                fontsize=9, fontweight="bold")
+                fontsize=8.5, fontweight="bold")
 
-    # Destaque da taxa de crescimento logarítmica (ln(2) ≈ 0.69)
-    ax.annotate(r"Crescimento $\approx \ln(2) \approx +0{,}69$ msgs ao dobrar $N$",
-                xy=(7.5, 3.4), xytext=(6.2, 2.3),
+    # Destaque compacto da taxa de crescimento logarítmica (ln(2) ≈ 0.69)
+    ax.annotate(r"Crescimento ao dobrar $N$:" + "\n" + r"$\approx \ln(2) \approx +0{,}69$ msgs",
+                xy=(7.5, 3.4), xytext=(6.2, 2.2),
                 arrowprops=dict(arrowstyle="->", color="#555", lw=1.0, ls=":"),
                 bbox=dict(boxstyle="round,pad=0.3", fc="#fff9c4", ec="#fbc02d", alpha=0.9),
                 fontsize=8.5, fontweight="bold")
@@ -137,8 +149,8 @@ def plot_complexity():
     ax.set_ylabel("Mensagens Médias por Entrada na Seção Crítica")
     ax.set_xticks(range(2, 13))
     ax.set_xlim(1.5, 11.5)
-    ax.set_ylim(1.8, 4.8)
-    ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd")
+    ax.set_ylim(1.7, 5.0)
+    ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd", fontsize=9.5)
 
     out_file = CHARTS_DIR / "01_complexidade_mensagens.png"
     plt.savefig(out_file)
@@ -165,10 +177,10 @@ def plot_wait_fifo():
     width = 0.30
 
     rects1 = ax.bar(x - width/2, [theory_5, theory_10], width,
-                    label=r"Modelo Analítico FIFO: $(N-1) \times \mu_{CS}$ ($\mu_{CS}=600$ ms)",
+                    label=r"Modelo Analítico FIFO: $(N-1) \times \mu_{CS}$",
                     color="#90a4ae", edgecolor="#37474f", hatch="//")
     rects2 = ax.bar(x + width/2, [loc_5, loc_10], width,
-                    label="Mediana Medida (Alta Contenção)",
+                    label="Tempo Mediano Medido (Alta Contenção)",
                     color="#1f4e79", edgecolor="#0d233a")
 
     # Valores acima das barras
@@ -200,8 +212,8 @@ def plot_wait_fifo():
     ax.set_ylabel("Tempo de Espera Mediano (ms)")
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontweight="bold", fontsize=11)
-    ax.set_ylim(0, 6600)
-    ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd")
+    ax.set_ylim(0, 7200)
+    ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd", fontsize=9.5)
 
     out_file = CHARTS_DIR / "02_espera_fila_fifo.png"
     plt.savefig(out_file)
