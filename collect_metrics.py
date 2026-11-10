@@ -126,12 +126,12 @@ def collect_node_metrics(nodes):
         "msgs_per_entry": msgs_per_entry
     }
 
-def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, cs_max, client_min, client_max):
+def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, cs_max, client_min, client_max, sync_enabled=True):
     expected_total = nodes * num_requests
     seed = 42 + rep_idx * 10
 
     env_vars = {
-        "SYNC_ENABLED": "true",
+        "SYNC_ENABLED": "true" if sync_enabled else "false",
         "NUM_REQUESTS": str(num_requests),
         "CS_MIN_SLEEP": str(cs_min),
         "CS_MAX_SLEEP": str(cs_max),
@@ -142,7 +142,7 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
     }
 
     print("\n" + "="*80)
-    print(f"EXPOSIÇÃO: {exp_name.upper()} | NÓS: {nodes} | REPETIÇÃO: {rep_idx} | SEMENTE: {seed}")
+    print(f"EXPOSIÇÃO: {exp_name.upper()} | NÓS: {nodes} | REPETIÇÃO: {rep_idx} | SEMENTE: {seed} | SYNC: {sync_enabled}")
     print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep cliente: [{client_min}s, {client_max}s]")
     print("="*80)
 
@@ -233,9 +233,10 @@ def main():
     parser = argparse.ArgumentParser(description="Automação de Testes de Métricas — TP2 Sistemas Distribuídos")
     parser.add_argument("--mode", choices=["local", "swarm"], default="local", help="Ambiente de execução (default: local)")
     parser.add_argument("--nodes", choices=["5", "10", "both"], default="both", help="Quantidade de nós do cluster (default: both)")
-    parser.add_argument("--experiments", nargs="+", choices=["normal", "high", "all"], default=["all"], help="Experimentos a executar (default: all)")
+    parser.add_argument("--experiments", nargs="+", choices=["disabled", "normal", "high", "all"], default=["all"], help="Experimentos a executar (default: all)")
     parser.add_argument("--repetitions", type=int, default=3, help="Número de repetições por experimento (default: 3)")
     parser.add_argument("--requests", type=int, default=10, help="Quantidade de requisições por cliente (default: 10)")
+    parser.add_argument("--append", action="store_true", help="Acrescenta aos resultados existentes em vez de sobrescrever")
     parser.add_argument("--json-out", default="metrics_results.json", help="Arquivo JSON de saída (default: metrics_results.json)")
     parser.add_argument("--csv-out", default="metrics_results.csv", help="Arquivo CSV de saída (default: metrics_results.csv)")
 
@@ -245,28 +246,50 @@ def main():
     node_list = [5, 10] if args.nodes == "both" else [int(args.nodes)]
 
     # Define quais experimentos rodar
-    exp_list = ["normal", "high"] if "all" in args.experiments else args.experiments
+    if "all" in args.experiments:
+        exp_list = ["disabled", "normal", "high"]
+    else:
+        exp_list = args.experiments
 
     results = []
+    if args.append and os.path.exists(args.json_out):
+        try:
+            with open(args.json_out, "r", encoding="utf-8") as f:
+                results = json.load(f)
+        except Exception:
+            results = []
 
     for nodes in node_list:
         for exp in exp_list:
-            if exp == "normal":
+            if exp == "disabled":
+                c_min, c_max = 0.0, 0.0
+                sync = False
+                exp_name = "disabled_sync"
+                # Para prova de instrumentação, 1 repetição já é uma prova conclusiva
+                num_reps = 1 if args.repetitions > 1 else 1
+            elif exp == "normal":
                 c_min, c_max = 1.0, 5.0
+                sync = True
+                exp_name = "normal_contention"
+                num_reps = args.repetitions
             else:  # high contention
                 c_min, c_max = 0.0, 0.0
+                sync = True
+                exp_name = "high_contention"
+                num_reps = args.repetitions
 
-            for rep in range(1, args.repetitions + 1):
+            for rep in range(1, num_reps + 1):
                 res = run_single_experiment(
                     mode=args.mode,
                     nodes=nodes,
-                    exp_name=f"{exp}_contention",
+                    exp_name=exp_name,
                     rep_idx=rep,
                     num_requests=args.requests,
                     cs_min=0.2,
                     cs_max=1.0,
                     client_min=c_min,
-                    client_max=c_max
+                    client_max=c_max,
+                    sync_enabled=sync
                 )
                 results.append(res)
                 # Salva incrementalmente para não perder dados se for interrompido
