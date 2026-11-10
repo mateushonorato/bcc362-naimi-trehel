@@ -2,6 +2,12 @@
 """
 Gera gráficos científicos de alta resolução a partir dos dados experimentais
 consolidados em results/metrics_results_local.csv e results/metrics_results_swarm.csv.
+
+Gráficos Teóricos e Empíricos:
+  - 01_complexidade_mensagens.png: Cota Harmônica Teórica O(log N) vs. Testes Locais.
+  - 02_espera_fila_fifo.png: Previsão Determinística FIFO (N-1)*mu_CS vs. Medição Local.
+  - 03_efeito_localidade.png: Efeito de Localidade e Reuso do Token (Carga Normal vs. Desigual Local).
+  - 04_overhead_rede_local_vs_nuvem.png: Comparativo Cruzado de Latência (Local Bridge vs. Nuvem OCI Swarm).
 """
 
 import csv
@@ -70,64 +76,68 @@ swarm_data = load_averages(SWARM_CSV)
 # GRÁFICO 1: Conformidade com a Complexidade Teórica O(log N) de Naimi-Tréhel
 # ==============================================================================
 def plot_complexity():
-    fig, ax = plt.subplots(figsize=(9, 5.5))
+    fig, ax = plt.subplots(figsize=(8.5, 5.2))
 
     # Curva teórica Naimi-Tréhel: H_{N-1} + 1
     nodes_range = np.arange(2, 13)
     harmonic_upper = [sum(1.0 / i for i in range(1, n)) + 1.0 for n in nodes_range]
 
-    # Modelo linear (ex: Token Ring ~ N/2)
-    linear_ring = [n / 2.0 for n in nodes_range]
+    # Plota curva teórica contínua
+    ax.plot(nodes_range, harmonic_upper, color="#1f4e79", lw=2.6, marker="o", markersize=5.5,
+            label=r"Cota Superior Harmônica Teórica: $\bar{M}(N) = H_{N-1} + 1$", zorder=3)
 
-    # Plota curvas de referência
-    ax.plot(nodes_range, harmonic_upper, color="#1f4e79", lw=2.5, marker="o", markersize=6,
-            label=r"Cota Superior Harmônica de Naimi–Tréhel: $\bar{M}(N) = H_{N-1} + 1$", zorder=3)
-    ax.plot(nodes_range, linear_ring, color="#b22222", lw=2.0, ls="--",
-            label=r"Algoritmo Linear em Anel (Token Ring): $\approx N/2$", zorder=2)
-
-    # Área sombreada delimitando a região sub-harmônica
+    # Área sombreada delimitando a região sub-harmônica válida
     ax.fill_between(nodes_range, 0, harmonic_upper, color="#1f4e79", alpha=0.08,
-                    label="Região Teórica Sub-Harmônica")
+                    label="Região Teórica Sub-Harmônica (Naimi–Tréhel)")
 
-    # Pontos empíricos medidos
-    # N = 5
-    mpe_5_norm_loc = local_data[("normal_contention", 5)]["avg_mpe"]
-    mpe_5_norm_swm = swarm_data[("normal_contention", 5)]["avg_mpe"]
-    mpe_5_high_swm = swarm_data[("high_contention", 5)]["avg_mpe"]
-    mpe_5_uneq_swm = swarm_data[("unequal_load", 5)]["avg_mpe"]
+    # Dados medidos locais (Médias das 3 repetições)
+    # 5 nós
+    mpe_5_norm = local_data[("normal_contention", 5)]["avg_mpe"]
+    mpe_5_high = local_data[("high_contention", 5)]["avg_mpe"]
+    mpe_5_uneq = local_data[("unequal_load", 5)]["avg_mpe"]
 
-    # N = 10
-    mpe_10_norm_loc = local_data[("normal_contention", 10)]["avg_mpe"]
-    mpe_10_norm_swm = swarm_data[("normal_contention", 10)]["avg_mpe"]
-    mpe_10_high_swm = swarm_data[("high_contention", 10)]["avg_mpe"]
-    mpe_10_uneq_swm = swarm_data[("unequal_load", 10)]["avg_mpe"]
+    # 10 nós
+    mpe_10_norm = local_data[("normal_contention", 10)]["avg_mpe"]
+    mpe_10_high = local_data[("high_contention", 10)]["avg_mpe"]
+    mpe_10_uneq = local_data[("unequal_load", 10)]["avg_mpe"]
 
-    ax.scatter([5, 10], [mpe_5_norm_loc, mpe_10_norm_loc], color="#2e7d32", s=90, marker="s",
-               label=f"Empírico Local (Carga Normal): 5={mpe_5_norm_loc:.2f}, 10={mpe_10_norm_loc:.2f}", zorder=4)
-    ax.scatter([5, 10], [mpe_5_norm_swm, mpe_10_norm_swm], color="#d95f02", s=110, marker="^",
-               label=f"Empírico Nuvem OCI (Carga Normal): 5={mpe_5_norm_swm:.2f}, 10={mpe_10_norm_swm:.2f}", zorder=5)
-    ax.scatter([5, 10], [mpe_5_high_swm, mpe_10_high_swm], color="#7570b3", s=80, marker="D",
-               label=f"Empírico Nuvem OCI (Alta Contenção): 5={mpe_5_high_swm:.2f}, 10={mpe_10_high_swm:.2f}", zorder=4)
-    ax.scatter([5, 10], [mpe_5_uneq_swm, mpe_10_uneq_swm], color="#008080", s=80, marker="v",
-               label=f"Empírico Nuvem OCI (Carga Desigual): 5={mpe_5_uneq_swm:.2f}, 10={mpe_10_uneq_swm:.2f}", zorder=4)
+    # Scatter points para cada cenário com marcadores e cores acadêmicas distintas
+    ax.scatter([5, 10], [mpe_5_norm, mpe_10_norm], color="#2e7d32", s=90, marker="s",
+               label=f"Carga Normal (5: {mpe_5_norm:.2f} | 10: {mpe_10_norm:.2f})", zorder=5)
+    ax.scatter([5, 10], [mpe_5_high, mpe_10_high], color="#d95f02", s=100, marker="D",
+               label=f"Alta Contenção (5: {mpe_5_high:.2f} | 10: {mpe_10_high:.2f})", zorder=5)
+    ax.scatter([5, 10], [mpe_5_uneq, mpe_10_uneq], color="#7570b3", s=90, marker="^",
+               label=f"Carga Desigual (5: {mpe_5_uneq:.2f} | 10: {mpe_10_uneq:.2f})", zorder=5)
 
-    # Anotações nos pontos principais
-    ax.annotate(r"$H_4 + 1 = 3{,}08$" + "\n" + f"Nuvem: {mpe_5_norm_swm:.2f}",
-                xy=(5, mpe_5_norm_swm), xytext=(5.3, 2.2),
-                arrowprops=dict(arrowstyle="->", color="#333", lw=1.2),
-                bbox=dict(boxstyle="round,pad=0.3", fc="#fff", ec="#bbb", alpha=0.9))
+    # Anotações nas cotas teóricas de 5 e 10 nós
+    h4 = sum(1.0 / i for i in range(1, 5)) + 1.0  # 3.083
+    h9 = sum(1.0 / i for i in range(1, 10)) + 1.0 # 3.829
 
-    ax.annotate(r"$H_9 + 1 = 3{,}83$" + "\n" + f"Nuvem: {mpe_10_norm_swm:.2f}",
-                xy=(10, mpe_10_norm_swm), xytext=(8.6, 4.4),
-                arrowprops=dict(arrowstyle="->", color="#333", lw=1.2),
-                bbox=dict(boxstyle="round,pad=0.3", fc="#fff", ec="#bbb", alpha=0.9))
+    ax.annotate(f"Cota $H_4 + 1 \\approx {h4:.2f}$\n(Máx. medido: {max(mpe_5_norm, mpe_5_high, mpe_5_uneq):.2f})",
+                xy=(5, h4), xytext=(3.4, 3.75),
+                arrowprops=dict(arrowstyle="->", color="#1f4e79", lw=1.2),
+                bbox=dict(boxstyle="round,pad=0.35", fc="#eef4fa", ec="#1f4e79", alpha=0.95),
+                fontsize=9, fontweight="bold")
 
-    ax.set_title("Conformidade com a Complexidade Logarítmica de Mensagens — O(log N)", pad=12)
+    ax.annotate(f"Cota $H_9 + 1 \\approx {h9:.2f}$\n(Máx. medido: {max(mpe_10_norm, mpe_10_high, mpe_10_uneq):.2f})",
+                xy=(10, h9), xytext=(7.8, 4.3),
+                arrowprops=dict(arrowstyle="->", color="#1f4e79", lw=1.2),
+                bbox=dict(boxstyle="round,pad=0.35", fc="#eef4fa", ec="#1f4e79", alpha=0.95),
+                fontsize=9, fontweight="bold")
+
+    # Destaque da taxa de crescimento logarítmica (ln(2) ≈ 0.69)
+    ax.annotate(r"Crescimento $\approx \ln(2) \approx +0{,}69$ msgs ao dobrar $N$",
+                xy=(7.5, 3.4), xytext=(6.2, 2.3),
+                arrowprops=dict(arrowstyle="->", color="#555", lw=1.0, ls=":"),
+                bbox=dict(boxstyle="round,pad=0.3", fc="#fff9c4", ec="#fbc02d", alpha=0.9),
+                fontsize=8.5, fontweight="bold")
+
+    ax.set_title("Complexidade de Mensagens de Naimi–Tréhel vs. Cota Teórica Harmônica", pad=12)
     ax.set_xlabel("Número de Processos Participantes (N)")
-    ax.set_ylabel("Média de Mensagens por Entrada na Seção Crítica")
+    ax.set_ylabel("Mensagens Médias por Entrada na Seção Crítica")
     ax.set_xticks(range(2, 13))
-    ax.set_xlim(1.5, 12.5)
-    ax.set_ylim(0, 6.5)
+    ax.set_xlim(1.5, 11.5)
+    ax.set_ylim(1.8, 4.8)
     ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd")
 
     out_file = CHARTS_DIR / "01_complexidade_mensagens.png"
@@ -139,52 +149,58 @@ def plot_complexity():
 # GRÁFICO 2: Tempo de Espera Mediano em Alta Contenção (Fila FIFO Determinística)
 # ==============================================================================
 def plot_wait_fifo():
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
 
     # Valores teóricos para Alta Contenção (mu_CS = 0.6s = 600ms):
     # Fila cheia com N-1 predecessores -> (N-1) * 600 ms
     theory_5 = (5 - 1) * 600.0   # 2400 ms
     theory_10 = (10 - 1) * 600.0 # 5400 ms
 
-    loc_5 = local_data[("high_contention", 5)]["avg_wait"]
-    loc_10 = local_data[("high_contention", 10)]["avg_wait"]
-
-    swm_5 = swarm_data[("high_contention", 5)]["avg_wait"]
-    swm_10 = swarm_data[("high_contention", 10)]["avg_wait"]
+    # Valores locais medidos
+    loc_5 = local_data[("high_contention", 5)]["avg_wait"]   # 2426.46 ms
+    loc_10 = local_data[("high_contention", 10)]["avg_wait"] # 5317.99 ms
 
     labels = ["5 Nós", "10 Nós"]
     x = np.arange(len(labels))
-    width = 0.25
+    width = 0.30
 
-    rects1 = ax.bar(x - width, [theory_5, theory_10], width, label=r"Modelo Analítico FIFO: $(N-1) \times \mu_{CS}$",
-                    color="#90a4ae", edgecolor="#546e7a", hatch="//")
-    rects2 = ax.bar(x, [loc_5, loc_10], width, label="Empírico Local (Docker Compose)",
-                    color="#2b5c8f", edgecolor="#1a365d")
-    rects3 = ax.bar(x + width, [swm_5, swm_10], width, label="Empírico Nuvem (OCI Swarm - 3 VMs)",
-                    color="#d95f02", edgecolor="#a03b00")
+    rects1 = ax.bar(x - width/2, [theory_5, theory_10], width,
+                    label=r"Modelo Analítico FIFO: $(N-1) \times \mu_{CS}$ ($\mu_{CS}=600$ ms)",
+                    color="#90a4ae", edgecolor="#37474f", hatch="//")
+    rects2 = ax.bar(x + width/2, [loc_5, loc_10], width,
+                    label="Mediana Medida (Alta Contenção)",
+                    color="#1f4e79", edgecolor="#0d233a")
 
-    # Valores nas barras
-    for rects in [rects1, rects2, rects3]:
+    # Valores acima das barras
+    for rects in [rects1, rects2]:
         for r in rects:
             h = r.get_height()
-            ax.annotate(f"{h:.0f} ms",
+            ax.annotate(f"{h:.1f} ms",
                         xy=(r.get_x() + r.get_width() / 2, h),
                         xytext=(0, 4), textcoords="offset points",
-                        ha="center", va="bottom", fontsize=9, fontweight="bold")
+                        ha="center", va="bottom", fontsize=9.5, fontweight="bold")
 
-    # Destaque do overhead de rede no caso de 10 nós
-    delta = swm_10 - loc_10
-    ax.annotate(f"Overhead VXLAN/OCI:\n+{delta:.1f} ms",
-                xy=(x[1] + width, swm_10), xytext=(x[1] + width + 0.18, swm_10 - 400),
-                arrowprops=dict(arrowstyle="->", color="#d95f02", lw=1.2),
-                bbox=dict(boxstyle="round,pad=0.3", fc="#fff3e0", ec="#ffb74d", alpha=0.9),
-                fontsize=8.5, fontweight="bold")
+    # Badges de aderência teórica / erro relativo
+    err_5 = ((loc_5 - theory_5) / theory_5) * 100.0
+    err_10 = ((loc_10 - theory_10) / theory_10) * 100.0
 
-    ax.set_title("Tempo de Espera Mediano em Alta Contenção: Fila FIFO vs. Medições", pad=12)
+    ax.annotate(f"Desvio: {err_5:+.1f}%\n(+{loc_5 - theory_5:.1f} ms)",
+                xy=(x[0] + width/2, loc_5), xytext=(x[0] + width + 0.08, loc_5 - 450),
+                arrowprops=dict(arrowstyle="->", color="#1b5e20", lw=1.2),
+                bbox=dict(boxstyle="round,pad=0.3", fc="#e8f5e9", ec="#2e7d32", alpha=0.95),
+                fontsize=8.5, fontweight="bold", color="#1b5e20")
+
+    ax.annotate(f"Desvio: {err_10:+.1f}%\n({loc_10 - theory_10:.1f} ms)",
+                xy=(x[1] + width/2, loc_10), xytext=(x[1] + width + 0.08, loc_10 - 750),
+                arrowprops=dict(arrowstyle="->", color="#1b5e20", lw=1.2),
+                bbox=dict(boxstyle="round,pad=0.3", fc="#e8f5e9", ec="#2e7d32", alpha=0.95),
+                fontsize=8.5, fontweight="bold", color="#1b5e20")
+
+    ax.set_title("Tempo de Espera Mediano sob Alta Contenção: Previsão Teórica FIFO vs. Medição", pad=12)
     ax.set_ylabel("Tempo de Espera Mediano (ms)")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontweight="bold")
-    ax.set_ylim(0, 6800)
+    ax.set_xticklabels(labels, fontweight="bold", fontsize=11)
+    ax.set_ylim(0, 6600)
     ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd")
 
     out_file = CHARTS_DIR / "02_espera_fila_fifo.png"
@@ -196,75 +212,62 @@ def plot_wait_fifo():
 # GRÁFICO 3: Efeito de Localidade do Token (Carga Normal vs. Carga Desigual)
 # ==============================================================================
 def plot_locality_effect():
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
 
-    # Comparativo: Carga Normal vs Carga Desigual
-    # 5 nós Local
-    norm_loc_5 = local_data[("normal_contention", 5)]["avg_mpe"]
-    uneq_loc_5 = local_data[("unequal_load", 5)]["avg_mpe"]
+    # Comparativo: Carga Normal vs Carga Desigual nos testes Locais
+    norm_5 = local_data[("normal_contention", 5)]["avg_mpe"]
+    uneq_5 = local_data[("unequal_load", 5)]["avg_mpe"]
 
-    # 5 nós Nuvem
-    norm_swm_5 = swarm_data[("normal_contention", 5)]["avg_mpe"]
-    uneq_swm_5 = swarm_data[("unequal_load", 5)]["avg_mpe"]
+    norm_10 = local_data[("normal_contention", 10)]["avg_mpe"]
+    uneq_10 = local_data[("unequal_load", 10)]["avg_mpe"]
 
-    # 10 nós Local
-    norm_loc_10 = local_data[("normal_contention", 10)]["avg_mpe"]
-    uneq_loc_10 = local_data[("unequal_load", 10)]["avg_mpe"]
-
-    # 10 nós Nuvem
-    norm_swm_10 = swarm_data[("normal_contention", 10)]["avg_mpe"]
-    uneq_swm_10 = swarm_data[("unequal_load", 10)]["avg_mpe"]
-
-    categories = ["5 Nós (Local)", "5 Nós (Nuvem OCI)", "10 Nós (Local)", "10 Nós (Nuvem OCI)"]
-    normal_vals = [norm_loc_5, norm_swm_5, norm_loc_10, norm_swm_10]
-    unequal_vals = [uneq_loc_5, uneq_swm_5, uneq_loc_10, uneq_swm_10]
+    categories = ["Topologia 5 Nós", "Topologia 10 Nós"]
+    normal_vals = [norm_5, norm_10]
+    unequal_vals = [uneq_5, uneq_10]
 
     x = np.arange(len(categories))
-    width = 0.35
+    width = 0.28
 
     rects1 = ax.bar(x - width/2, normal_vals, width, label="Carga Normal (Distribuição Equilibrada)",
                     color="#4a7bb0", edgecolor="#244d7a")
-    rects2 = ax.bar(x + width/2, unequal_vals, width, label="Carga Desigual (Client 1 com Rajada Rápida)",
+    rects2 = ax.bar(x + width/2, unequal_vals, width, label="Carga Desigual (Rajada Rápida no Nó 1)",
                     color="#2ca25f", edgecolor="#006d2c")
 
-    # Valores e percentual de redução
+    # Valores e percentuais de redução
     for i in range(len(categories)):
         v1 = normal_vals[i]
         v2 = unequal_vals[i]
         diff_pct = ((v2 - v1) / v1) * 100.0
+        diff_abs = v2 - v1
 
         ax.annotate(f"{v1:.2f}",
                     xy=(rects1[i].get_x() + rects1[i].get_width() / 2, v1),
                     xytext=(0, 3), textcoords="offset points",
-                    ha="center", va="bottom", fontsize=9, fontweight="bold")
+                    ha="center", va="bottom", fontsize=10, fontweight="bold")
 
         ax.annotate(f"{v2:.2f}",
                     xy=(rects2[i].get_x() + rects2[i].get_width() / 2, v2),
                     xytext=(0, 3), textcoords="offset points",
-                    ha="center", va="bottom", fontsize=9, fontweight="bold")
+                    ha="center", va="bottom", fontsize=10, fontweight="bold")
 
-        if diff_pct < 0:
-            badge_color = "#e8f5e9"
-            border_color = "#2e7d32"
-            text_color = "#1b5e20"
-            label_text = f"Economia:\n{diff_pct:.1f}%"
-        else:
-            badge_color = "#fff3e0"
-            border_color = "#e65100"
-            text_color = "#b71c1c"
-            label_text = f"{diff_pct:+.1f}%"
-
+        label_text = f"Economia de Mensagens:\n{diff_pct:.1f}% ({diff_abs:.2f} msgs/entrada)"
         ax.annotate(label_text,
-                    xy=(x[i], max(v1, v2)), xytext=(0, 18), textcoords="offset points",
-                    ha="center", va="bottom", fontsize=8, fontweight="bold",
-                    color=text_color,
-                    bbox=dict(boxstyle="round,pad=0.2", fc=badge_color, ec=border_color, alpha=0.9))
+                    xy=(x[i], max(v1, v2)), xytext=(0, 20), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=8.5, fontweight="bold",
+                    color="#1b5e20",
+                    bbox=dict(boxstyle="round,pad=0.3", fc="#e8f5e9", ec="#2e7d32", alpha=0.95))
 
-    ax.set_title("Efeito de Localidade: Otimização de Mensagens por Reversão de Caminhos", pad=14)
-    ax.set_ylabel("Média de Mensagens por Entrada")
+    # Box explicativo teórico
+    ax.text(0.5, 0.08,
+            "Reuso Local do Token: nó detentor satisfaz rajadas com 0 mensagens na rede (has_token == True).",
+            transform=ax.transAxes, ha="center", fontsize=8.5, style="italic",
+            bbox=dict(boxstyle="square,pad=0.4", fc="#f5f5f5", ec="#ccc", alpha=0.9))
+
+    ax.set_title("Efeito de Localidade: Otimização de Mensagens sob Carga Desigual", pad=12)
+    ax.set_ylabel("Mensagens Médias por Entrada")
     ax.set_xticks(x)
-    ax.set_xticklabels(categories, fontweight="bold")
-    ax.set_ylim(0, 4.5)
+    ax.set_xticklabels(categories, fontweight="bold", fontsize=11)
+    ax.set_ylim(0, 4.4)
     ax.legend(loc="upper left", framealpha=0.95, edgecolor="#ddd")
 
     out_file = CHARTS_DIR / "03_efeito_localidade.png"
@@ -309,7 +312,7 @@ def plot_cross_comparison():
 
     # Subplot 1: 5 Nós
     rects1 = ax1.bar(x - width/2, loc_5, width, label="Local (Docker Compose)", color="#386cb0", edgecolor="#1a3b68")
-    rects2 = ax1.bar(x + width/2, swm_5, width, label="Nuvem (OCI Swarm - 3 VMs)", color="#f28e2b", edgecolor="#b85d00")
+    rects2 = ax1.bar(x + width/2, swm_5, width, label="Nuvem OCI (Docker Swarm - 3 VMs)", color="#f28e2b", edgecolor="#b85d00")
 
     for rects in [rects1, rects2]:
         for r in rects:
@@ -322,13 +325,13 @@ def plot_cross_comparison():
     ax1.set_title("Topologia com 5 Nós", fontsize=12, pad=10)
     ax1.set_ylabel("Tempo de Espera Mediano (ms)")
     ax1.set_xticks(x)
-    ax1.set_xticklabels(scenarios, fontsize=9.5)
+    ax1.set_xticklabels(scenarios, fontsize=9.5, fontweight="bold")
     ax1.set_ylim(0, 3100)
     ax1.legend(loc="upper left", fontsize=9)
 
     # Subplot 2: 10 Nós
     rects3 = ax2.bar(x - width/2, loc_10, width, label="Local (Docker Compose)", color="#386cb0", edgecolor="#1a3b68")
-    rects4 = ax2.bar(x + width/2, swm_10, width, label="Nuvem (OCI Swarm - 3 VMs)", color="#f28e2b", edgecolor="#b85d00")
+    rects4 = ax2.bar(x + width/2, swm_10, width, label="Nuvem OCI (Docker Swarm - 3 VMs)", color="#f28e2b", edgecolor="#b85d00")
 
     for rects in [rects3, rects4]:
         for r in rects:
@@ -338,14 +341,22 @@ def plot_cross_comparison():
                          xytext=(0, 3), textcoords="offset points",
                          ha="center", va="bottom", fontsize=8.5, fontweight="bold")
 
+    # Destaque do Overhead VXLAN na Alta Contenção de 10 nós
+    delta_vxlan = swm_10[1] - loc_10[1]
+    ax2.annotate(f"+{delta_vxlan:.1f} ms\n(Overhead VXLAN/RTT)",
+                 xy=(x[1] + width/2, swm_10[1]), xytext=(x[1] + width/2 + 0.15, swm_10[1] - 800),
+                 arrowprops=dict(arrowstyle="->", color="#b85d00", lw=1.2),
+                 bbox=dict(boxstyle="round,pad=0.3", fc="#fff3e0", ec="#ffb74d", alpha=0.95),
+                 fontsize=8.5, fontweight="bold", color="#a03b00")
+
     ax2.set_title("Topologia com 10 Nós", fontsize=12, pad=10)
     ax2.set_ylabel("Tempo de Espera Mediano (ms)")
     ax2.set_xticks(x)
-    ax2.set_xticklabels(scenarios, fontsize=9.5)
+    ax2.set_xticklabels(scenarios, fontsize=9.5, fontweight="bold")
     ax2.set_ylim(0, 6800)
     ax2.legend(loc="upper left", fontsize=9)
 
-    fig.suptitle("Comparativo Cruzado de Latência: Impacto da Infraestrutura (Local vs. Nuvem OCI)", fontsize=13, y=1.02, fontweight="bold")
+    fig.suptitle("Comparativo Cruzado de Latência: Efeito do RTT e Encapsulamento VXLAN", fontsize=13, y=1.02, fontweight="bold")
     plt.tight_layout()
 
     out_file = CHARTS_DIR / "04_overhead_rede_local_vs_nuvem.png"

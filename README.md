@@ -360,7 +360,7 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
   - O valor teórico de acréscimo harmônico é $\ln(10) - \ln(5) = \ln(2) \approx 0{,}693$ mensagens adicionais. A correspondência entre o modelo analítico e a medição empírica é quase exata, refutando a escala linear $\mathcal{O}(N)$ característica de algoritmos em anel (Token Ring), que teria dobrado o número de mensagens de $2{,}5$ para $5{,}0$.
 
 <p align="center">
-  <img src="results/charts/01_complexidade_mensagens.png" alt="Complexidade de Mensagens Naimi-Tréhel vs. Anel Lógico" width="850">
+  <img src="results/charts/01_complexidade_mensagens.png" alt="Complexidade de Mensagens Naimi-Tréhel vs. Cota Teórica Harmônica" width="850">
 </p>
 
 #### 3. Dinâmica de Espera e Fila FIFO (*Liveness* e Ausência de Starvation)
