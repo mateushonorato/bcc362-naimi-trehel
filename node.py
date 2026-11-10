@@ -7,36 +7,14 @@ import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-def safe_float(val, default):
-    if val is None:
-        return default
-    val_str = str(val).strip()
-    if not val_str or val_str.startswith("${"):
-        return default
-    try:
-        return float(val_str)
-    except ValueError:
-        return default
-
-def safe_int(val, default):
-    if val is None:
-        return default
-    val_str = str(val).strip()
-    if not val_str or val_str.startswith("${"):
-        return default
-    try:
-        return int(val_str)
-    except ValueError:
-        return default
-
 NODE_ID = os.environ.get("NODE_ID", "node1")
-PORT = safe_int(os.environ.get("PORT"), 8000)
+PORT = int(os.environ.get("PORT", "8000"))
 INITIAL_FATHER = os.environ.get("INITIAL_FATHER", "") or None
 HAS_TOKEN_INIT = os.environ.get("HAS_TOKEN", "false").lower() == "true"
 OBSERVER_URL = os.environ.get("OBSERVER_URL", "http://observer:9000")
 SYNC_ENABLED = os.environ.get("SYNC_ENABLED", "true").lower() == "true"
-CS_MIN_SLEEP = safe_float(os.environ.get("CS_MIN_SLEEP"), 0.2)
-CS_MAX_SLEEP = safe_float(os.environ.get("CS_MAX_SLEEP"), 1.0)
+CS_MIN_SLEEP = float(os.environ.get("CS_MIN_SLEEP", "0.2"))
+CS_MAX_SLEEP = float(os.environ.get("CS_MAX_SLEEP", "1.0"))
 
 # Peers mapeados por nome de servico DNS do Docker
 PEERS = {
@@ -94,16 +72,15 @@ class NaimiTrehelNode:
             "request_id": request_id
         }).encode("utf-8")
         url = f"{OBSERVER_URL}/event"
-        start_t = time.monotonic()
-        while time.monotonic() - start_t < 60.0:
+        for _ in range(30):
             try:
                 req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     resp.read()
                 return
             except Exception:
-                time.sleep(0.2)
-        print(f"[WARN] Falha definitiva ao notificar observer ({event_type}) para {request_id}", flush=True)
+                time.sleep(0.5)
+        print(f"[WARN] Falha ao notificar observer ({event_type}) para {request_id}", flush=True)
 
     def log_event(self, stage, request_id, extra=""):
         print(

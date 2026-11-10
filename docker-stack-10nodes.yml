@@ -6,101 +6,6 @@ networks:
     attachable: true
 
 services:
-  observer:
-    image: cluster-sync:latest
-    command: ["python", "observer.py"]
-    networks: [syncnet]
-    ports:
-      - "9000:9000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  node1:
-    image: cluster-sync:latest
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node1"
-      INITIAL_FATHER: ""
-      HAS_TOKEN: "true"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    networks: [syncnet]
-    ports:
-      - "8001:8000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  node2:
-    image: cluster-sync:latest
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node2"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    networks: [syncnet]
-    ports:
-      - "8002:8000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  node3:
-    image: cluster-sync:latest
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node3"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    networks: [syncnet]
-    ports:
-      - "8003:8000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  node4:
-    image: cluster-sync:latest
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node4"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    networks: [syncnet]
-    ports:
-      - "8004:8000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm2]
-
-  node5:
-    image: cluster-sync:latest
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node5"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    networks: [syncnet]
-    ports:
-      - "8005:8000"
-    deploy:
-      placement:
-        constraints: [node.labels.vm == vm2]
-
   node6:
     image: cluster-sync:latest
     command: ["python", "node.py"]
@@ -116,7 +21,7 @@ services:
       - "8006:8000"
     deploy:
       placement:
-        constraints: [node.labels.vm == vm2]
+        constraints: [node.labels.vm == vm1]
 
   node7:
     image: cluster-sync:latest
@@ -133,7 +38,7 @@ services:
       - "8007:8000"
     deploy:
       placement:
-        constraints: [node.labels.vm == vm3]
+        constraints: [node.labels.vm == vm1]
 
   node8:
     image: cluster-sync:latest
@@ -150,7 +55,7 @@ services:
       - "8008:8000"
     deploy:
       placement:
-        constraints: [node.labels.vm == vm3]
+        constraints: [node.labels.vm == vm2]
 
   node9:
     image: cluster-sync:latest
@@ -186,98 +91,6 @@ services:
       placement:
         constraints: [node.labels.vm == vm3]
 
-  client1:
-    image: cluster-sync:latest
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client1"
-      TARGET_URL: "http://node1:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      CLIENT1_MIN_SLEEP: "${CLIENT1_MIN_SLEEP:-}"
-      CLIENT1_MAX_SLEEP: "${CLIENT1_MAX_SLEEP:-}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    networks: [syncnet]
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  client2:
-    image: cluster-sync:latest
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client2"
-      TARGET_URL: "http://node2:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    networks: [syncnet]
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  client3:
-    image: cluster-sync:latest
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client3"
-      TARGET_URL: "http://node3:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    networks: [syncnet]
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints: [node.labels.vm == vm1]
-
-  client4:
-    image: cluster-sync:latest
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client4"
-      TARGET_URL: "http://node4:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    networks: [syncnet]
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints: [node.labels.vm == vm2]
-
-  client5:
-    image: cluster-sync:latest
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client5"
-      TARGET_URL: "http://node5:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    networks: [syncnet]
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints: [node.labels.vm == vm2]
-
   client6:
     image: cluster-sync:latest
     command: ["python", "client.py"]
@@ -294,7 +107,7 @@ services:
       restart_policy:
         condition: none
       placement:
-        constraints: [node.labels.vm == vm2]
+        constraints: [node.labels.vm == vm1]
 
   client7:
     image: cluster-sync:latest
@@ -312,7 +125,7 @@ services:
       restart_policy:
         condition: none
       placement:
-        constraints: [node.labels.vm == vm2]
+        constraints: [node.labels.vm == vm1]
 
   client8:
     image: cluster-sync:latest
@@ -330,7 +143,7 @@ services:
       restart_policy:
         condition: none
       placement:
-        constraints: [node.labels.vm == vm3]
+        constraints: [node.labels.vm == vm2]
 
   client9:
     image: cluster-sync:latest
@@ -348,7 +161,7 @@ services:
       restart_policy:
         condition: none
       placement:
-        constraints: [node.labels.vm == vm3]
+        constraints: [node.labels.vm == vm2]
 
   client10:
     image: cluster-sync:latest

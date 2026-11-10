@@ -1,80 +1,6 @@
+version: "3.8"
+
 services:
-  observer:
-    build: .
-    command: ["python", "observer.py"]
-    ports:
-      - "9000:9000"
-
-  node1:
-    build: .
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node1"
-      INITIAL_FATHER: ""
-      HAS_TOKEN: "true"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    ports:
-      - "8001:8000"
-    depends_on: [observer]
-
-  node2:
-    build: .
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node2"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    ports:
-      - "8002:8000"
-    depends_on: [observer, node1]
-
-  node3:
-    build: .
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node3"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    ports:
-      - "8003:8000"
-    depends_on: [observer, node1]
-
-  node4:
-    build: .
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node4"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    ports:
-      - "8004:8000"
-    depends_on: [observer, node1]
-
-  node5:
-    build: .
-    command: ["python", "node.py"]
-    environment:
-      NODE_ID: "node5"
-      INITIAL_FATHER: "node1"
-      HAS_TOKEN: "false"
-      SYNC_ENABLED: "${SYNC_ENABLED:-true}"
-      CS_MIN_SLEEP: "${CS_MIN_SLEEP:-0.2}"
-      CS_MAX_SLEEP: "${CS_MAX_SLEEP:-1.0}"
-    ports:
-      - "8005:8000"
-    depends_on: [observer, node1]
-
   node6:
     build: .
     command: ["python", "node.py"]
@@ -145,73 +71,6 @@ services:
       - "8010:8000"
     depends_on: [observer, node1]
 
-  client1:
-    build: .
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client1"
-      TARGET_URL: "http://node1:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      CLIENT1_MIN_SLEEP: "${CLIENT1_MIN_SLEEP:-}"
-      CLIENT1_MAX_SLEEP: "${CLIENT1_MAX_SLEEP:-}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
-
-  client2:
-    build: .
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client2"
-      TARGET_URL: "http://node2:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
-
-  client3:
-    build: .
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client3"
-      TARGET_URL: "http://node3:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
-
-  client4:
-    build: .
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client4"
-      TARGET_URL: "http://node4:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
-
-  client5:
-    build: .
-    command: ["python", "client.py"]
-    environment:
-      CLIENT_ID: "client5"
-      TARGET_URL: "http://node5:8000"
-      NUM_REQUESTS: "${NUM_REQUESTS:-10}"
-      CLIENT_MIN_SLEEP: "${CLIENT_MIN_SLEEP:-1.0}"
-      CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
-      RANDOM_SEED: "${RANDOM_SEED:-42}"
-      CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
-
   client6:
     build: .
     command: ["python", "client.py"]
@@ -223,7 +82,7 @@ services:
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
+    depends_on: [node1, node6]
 
   client7:
     build: .
@@ -236,7 +95,7 @@ services:
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
+    depends_on: [node1, node7]
 
   client8:
     build: .
@@ -249,7 +108,7 @@ services:
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
+    depends_on: [node1, node8]
 
   client9:
     build: .
@@ -262,7 +121,7 @@ services:
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
+    depends_on: [node1, node9]
 
   client10:
     build: .
@@ -275,4 +134,4 @@ services:
       CLIENT_MAX_SLEEP: "${CLIENT_MAX_SLEEP:-5.0}"
       RANDOM_SEED: "${RANDOM_SEED:-42}"
       CLIENT_TIMEOUT: "${CLIENT_TIMEOUT:-300.0}"
-    depends_on: [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
+    depends_on: [node1, node10]

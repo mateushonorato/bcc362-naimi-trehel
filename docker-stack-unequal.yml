@@ -1,0 +1,7 @@
+version: "3.8"
+
+services:
+  client1:
+    environment:
+      CLIENT_MIN_SLEEP: "0.1"
+      CLIENT_MAX_SLEEP: "0.3"

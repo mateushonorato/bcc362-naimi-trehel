@@ -83,17 +83,19 @@ Considere $N$ processos participantes no Cluster Sync:
 ### Arquivos do Projeto
 ```text
 .
-├── client.py                  # Gerador de carga dos clientes (pedidos sequenciais com sleep parametrizável)
-├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel, canais FIFO e telemetria de espera)
+├── client.py                  # Gerador de carga dos clientes (agnóstico, lê parâmetros padrão de ambiente)
+├── node.py                    # Nó do Cluster Sync (Naimi-Tréhel P2P, canais FIFO e telemetria de espera)
 ├── observer.py                # Verificador passivo de exclusão mútua (eventos BEGIN/END e endpoint /stats)
 ├── collect_metrics.py         # Script de automação para execução, repetições e coleta estruturada de métricas
 ├── metrics_results.json       # Base de dados JSON consolidada com os resultados das execuções empíricas
 ├── metrics_results.csv        # Base de dados CSV consolidada para análise e geração de gráficos
 ├── Dockerfile                 # Definição da imagem leve baseada em python:3.12-alpine
-├── docker-compose.yml         # Orquestração local padrão com 5 nós, 5 clientes e 1 observador
-├── docker-compose-10nodes.yml # Orquestração local expandida com 10 nós e 10 clientes (escala)
-├── docker-stack.yml           # Orquestração Docker Swarm com 5 nós distribuídos em 3 VMs (Oracle Cloud)
-├── docker-stack-10nodes.yml   # Orquestração Docker Swarm com 10 nós distribuídos em 3 VMs (Oracle Cloud)
+├── docker-compose.yml         # Orquestração local base com 5 nós, 5 clientes e 1 observador
+├── docker-compose-10nodes.yml # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
+├── docker-compose-unequal.yml # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+├── docker-stack.yml           # Orquestração Swarm base com 5 nós distribuídos em 3 VMs (Oracle Cloud)
+├── docker-stack-10nodes.yml   # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
+├── docker-stack-unequal.yml   # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
 └── README.md                  # Documentação completa e relatório de experimentos
 ```
 
@@ -101,7 +103,7 @@ Considere $N$ processos participantes no Cluster Sync:
 
 ## 4. Parâmetros e Variáveis de Ambiente
 
-As configurações dos serviços podem ser ajustadas via variáveis de ambiente no Compose, Stack ou através do `collect_metrics.py`:
+As configurações dos serviços podem ser ajustadas via variáveis de ambiente no Compose, Stack ou através do `collect_metrics.py`. Todos os clientes e nós são completamente agnósticos e utilizam a mesma interface padrão:
 
 | Variável | Serviço | Padrão | Descrição |
 | :--- | :---: | :---: | :--- |
@@ -114,13 +116,14 @@ As configurações dos serviços podem ser ajustadas via variáveis de ambiente 
 | `TARGET_URL` | `client` | `http://node1:8000` | Endereço HTTP do nó associado ao cliente. |
 | `NUM_REQUESTS` | `client` | `10` | Quantidade de requisições sequenciais de escrita ($10$ a $50$). |
 | `CLIENT_MIN_SLEEP` / `CLIENT_MAX_SLEEP` | `client` | `1.0` / `5.0` | Intervalo de espera aleatório entre requisições sucessivas dos clientes. |
-| `CLIENT1_MIN_SLEEP` / `CLIENT1_MAX_SLEEP` | `client` | `1.0` / `5.0` | Permite sobrepor individualmente o intervalo do `client1` para o teste de carga desigual. |
 | `RANDOM_SEED` | `client` | `42` | Semente pseudoaleatória para reprodutibilidade das durações e intervalos. |
 | `CLIENT_TIMEOUT` | `client` | `300.0` | Timeout máximo (em segundos) de espera pela resposta HTTP `COMMITTED`. |
 
 ---
 
 ## 5. Execução Local (Docker Compose)
+
+O projeto utiliza o recurso nativo de **composição de arquivos** (`-f`) do Docker Compose:
 
 ### 5.1. Construir e Iniciar Manualmente
 
@@ -129,9 +132,19 @@ As configurações dos serviços podem ser ajustadas via variáveis de ambiente 
 docker compose up --build
 ```
 
-**Cenário de escala (10 nós):**
+**Cenário de escala (10 nós — composição):**
 ```bash
-docker compose -f docker-compose-10nodes.yml up --build
+docker compose -f docker-compose.yml -f docker-compose-10nodes.yml up --build
+```
+
+**Cenário de carga desigual (5 nós — override):**
+```bash
+docker compose -f docker-compose.yml -f docker-compose-unequal.yml up
+```
+
+**Cenário de escala com carga desigual (10 nós — composição tripla):**
+```bash
+docker compose -f docker-compose.yml -f docker-compose-10nodes.yml -f docker-compose-unequal.yml up
 ```
 
 ### 5.2. Inspecionar Métricas e Estado em Tempo de Execução
@@ -151,24 +164,24 @@ done
 ```bash
 docker compose down
 # ou para 10 nós:
-docker compose -f docker-compose-10nodes.yml down
+docker compose -f docker-compose.yml -f docker-compose-10nodes.yml down
 ```
 
 ---
 
 ## 6. Execução Distribuída na Oracle Cloud (Docker Swarm — 3 VMs)
 
-A implantação em nuvem distribui os contêineres entre **3 máquinas virtuais Ubuntu 24.04/26.04** (1 OCPU e 8 GB de RAM cada) na Oracle Cloud Infrastructure (OCI), comunicando-se pela rede `overlay` criptografada do Docker Swarm:
+A implantação em nuvem distribui os contêineres entre **3 máquinas virtuais Ubuntu 24.04/26.04** (1 OCPU e 8 GB de RAM cada) na Oracle Cloud Infrastructure (OCI), utilizando composição nativa de stacks (`-c`):
 
 - **Topologia de 5 nós (`docker-stack.yml`):**
-  - **VM 1 (`vm1` — Manager):** `observer`, `node1`, `client1`
-  - **VM 2 (`vm2` — Worker):** `node2`, `node3`, `client2`, `client3`
-  - **VM 3 (`vm3` — Worker):** `node4`, `node5`, `client4`, `client5`
+  - **VM 1 (`vm1` — Manager, 3 contêineres):** `observer`, `node1`, `client1`
+  - **VM 2 (`vm2` — Worker, 4 contêineres):** `node2`, `node3`, `client2`, `client3`
+  - **VM 3 (`vm3` — Worker, 4 contêineres):** `node4`, `node5`, `client4`, `client5`
 
-- **Topologia de 10 nós (`docker-stack-10nodes.yml` — distribuição simétrica balanceada de 7 contêineres por VM):**
-  - **VM 1 (`vm1` — Manager, 7 contêineres):** `observer`, `node1`, `node2`, `node3`, `client1`, `client2`, `client3`
-  - **VM 2 (`vm2` — Worker, 7 contêineres):** `node4`, `node5`, `node6`, `client4`, `client5`, `client6`, `client7`
-  - **VM 3 (`vm3` — Worker, 7 contêineres):** `node7`, `node8`, `node9`, `node10`, `client8`, `client9`, `client10`
+- **Topologia de 10 nós (`docker-stack.yml` + `docker-stack-10nodes.yml` — distribuição simétrica balanceada de 7 contêineres por VM):**
+  - **VM 1 (`vm1` — Manager, 7 contêineres):** `observer`, `node1`, `client1` + `node6`, `node7`, `client6`, `client7`
+  - **VM 2 (`vm2` — Worker, 7 contêineres):** `node2`, `node3`, `client2`, `client3` + `node8`, `client8`, `client9`
+  - **VM 3 (`vm3` — Worker, 7 contêineres):** `node4`, `node5`, `client4`, `client5` + `node9`, `node10`, `client10`
 
 ### Passo 1: Configurar Regras de Firewall nas VMs e VCN
 Na Security List da sub-rede da OCI e no firewall interno de cada VM, libere as portas do Swarm e dos serviços:
@@ -202,8 +215,11 @@ Na **VM 1 (Manager)**:
 # Para 5 nós:
 docker stack deploy -c docker-stack.yml clustersync
 
-# Para 10 nós:
-docker stack deploy -c docker-stack-10nodes.yml clustersync
+# Para 10 nós (composição):
+docker stack deploy -c docker-stack.yml -c docker-stack-10nodes.yml clustersync
+
+# Para carga desigual:
+docker stack deploy -c docker-stack.yml -c docker-stack-unequal.yml clustersync
 ```
 Acompanhe os serviços e métricas:
 ```bash

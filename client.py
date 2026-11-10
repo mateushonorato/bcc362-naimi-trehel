@@ -4,41 +4,13 @@ import random
 import time
 import urllib.request
 
-def safe_float(val, default):
-    if val is None:
-        return default
-    val_str = str(val).strip()
-    if not val_str or val_str.startswith("${"):
-        return default
-    try:
-        return float(val_str)
-    except ValueError:
-        return default
-
-def safe_int(val, default):
-    if val is None:
-        return default
-    val_str = str(val).strip()
-    if not val_str or val_str.startswith("${"):
-        return default
-    try:
-        return int(val_str)
-    except ValueError:
-        return default
-
 CLIENT_ID = os.environ.get("CLIENT_ID", "client1")
 TARGET_URL = os.environ.get("TARGET_URL", "http://node1:8000")
-NUM_REQUESTS = safe_int(os.environ.get("NUM_REQUESTS"), 10)
-
-if CLIENT_ID == "client1" and os.environ.get("CLIENT1_MIN_SLEEP") and not os.environ.get("CLIENT1_MIN_SLEEP").startswith("${"):
-    MIN_SLEEP = safe_float(os.environ.get("CLIENT1_MIN_SLEEP"), 1.0)
-    MAX_SLEEP = safe_float(os.environ.get("CLIENT1_MAX_SLEEP"), 5.0)
-else:
-    MIN_SLEEP = safe_float(os.environ.get("CLIENT_MIN_SLEEP"), 1.0)
-    MAX_SLEEP = safe_float(os.environ.get("CLIENT_MAX_SLEEP"), 5.0)
-
-RANDOM_SEED = safe_int(os.environ.get("RANDOM_SEED"), 42)
-CLIENT_TIMEOUT = safe_float(os.environ.get("CLIENT_TIMEOUT"), 300.0)
+NUM_REQUESTS = int(os.environ.get("NUM_REQUESTS", "10"))
+MIN_SLEEP = float(os.environ.get("CLIENT_MIN_SLEEP", "1.0"))
+MAX_SLEEP = float(os.environ.get("CLIENT_MAX_SLEEP", "5.0"))
+RANDOM_SEED = int(os.environ.get("RANDOM_SEED", "42"))
+CLIENT_TIMEOUT = float(os.environ.get("CLIENT_TIMEOUT", "300.0"))
 
 random.seed(f"{RANDOM_SEED}-{CLIENT_ID}")
 

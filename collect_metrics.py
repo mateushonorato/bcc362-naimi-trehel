@@ -49,24 +49,40 @@ def get_json(url, timeout=5):
         print(f"[WARN] Erro ao consultar {url}: {e}")
         return None
 
-def start_cluster(mode, nodes, env_vars):
+def get_compose_args(mode, nodes, exp_name):
     if mode == "local":
-        compose_file = "docker-compose.yml" if nodes == 5 else "docker-compose-10nodes.yml"
-        print(f"[*] [Local] Subindo cluster de {nodes} nós com {compose_file}...")
-        run_cmd(f"docker compose -f {compose_file} down", check=False)
-        run_cmd(f"docker compose -f {compose_file} up -d", env=env_vars)
+        args = ["-f", "docker-compose.yml"]
+        if nodes == 10:
+            args.extend(["-f", "docker-compose-10nodes.yml"])
+        if "unequal" in exp_name:
+            args.extend(["-f", "docker-compose-unequal.yml"])
+        return " ".join(args)
+    else:
+        args = ["-c", "docker-stack.yml"]
+        if nodes == 10:
+            args.extend(["-c", "docker-stack-10nodes.yml"])
+        if "unequal" in exp_name:
+            args.extend(["-c", "docker-stack-unequal.yml"])
+        return " ".join(args)
+
+def start_cluster(mode, nodes, exp_name, env_vars):
+    if mode == "local":
+        file_args = get_compose_args("local", nodes, exp_name)
+        print(f"[*] [Local] Subindo cluster de {nodes} nós ({file_args})...")
+        run_cmd(f"docker compose {file_args} down", check=False)
+        run_cmd(f"docker compose {file_args} up -d", env=env_vars)
     elif mode == "swarm":
-        stack_file = "docker-stack.yml" if nodes == 5 else "docker-stack-10nodes.yml"
-        print(f"[*] [Swarm] Fazendo deploy da stack com {stack_file}...")
+        file_args = get_compose_args("swarm", nodes, exp_name)
+        print(f"[*] [Swarm] Fazendo deploy da stack com {file_args}...")
         run_cmd("docker stack rm clustersync", check=False)
         time.sleep(10)  # aguarda limpeza de redes e serviços no Swarm
-        run_cmd(f"docker stack deploy -c {stack_file} clustersync", env=env_vars)
+        run_cmd(f"docker stack deploy {file_args} clustersync", env=env_vars)
 
-def stop_cluster(mode, nodes):
+def stop_cluster(mode, nodes, exp_name="normal"):
     if mode == "local":
-        compose_file = "docker-compose.yml" if nodes == 5 else "docker-compose-10nodes.yml"
-        print(f"[*] [Local] Finalizando cluster ({compose_file})...")
-        run_cmd(f"docker compose -f {compose_file} down", check=False)
+        file_args = get_compose_args("local", nodes, exp_name)
+        print(f"[*] [Local] Finalizando cluster ({file_args})...")
+        run_cmd(f"docker compose {file_args} down", check=False)
     elif mode == "swarm":
         print("[*] [Swarm] Removendo stack clustersync...")
         run_cmd("docker stack rm clustersync", check=False)
@@ -138,21 +154,19 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
         "CLIENT_MIN_SLEEP": str(client_min),
         "CLIENT_MAX_SLEEP": str(client_max),
         "RANDOM_SEED": str(seed),
-        "CLIENT_TIMEOUT": "300.0",
-        "CLIENT1_MIN_SLEEP": str(client1_min if client1_min is not None else client_min),
-        "CLIENT1_MAX_SLEEP": str(client1_max if client1_max is not None else client_max),
+        "CLIENT_TIMEOUT": "300.0"
     }
 
     print("\n" + "="*80)
     print(f"EXPOSIÇÃO: {exp_name.upper()} | NÓS: {nodes} | REPETIÇÃO: {rep_idx} | SEMENTE: {seed} | SYNC: {sync_enabled}")
-    if client1_min is not None:
-        print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep client1: [{client1_min}s, {client1_max}s] | Sleep outros: [{client_min}s, {client_max}s]")
+    if exp_name == "unequal":
+        print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep client1: [0.1s, 0.3s] (override) | Sleep outros: [{client_min}s, {client_max}s]")
     else:
         print(f"Configuração: {num_requests} req/cliente | Total esperado: {expected_total} | CS: [{cs_min}s, {cs_max}s] | Sleep cliente: [{client_min}s, {client_max}s]")
     print("="*80)
 
     try:
-        start_cluster(mode, nodes, env_vars)
+        start_cluster(mode, nodes, exp_name, env_vars)
         if not wait_for_http(f"{OBSERVER_URL}/stats", timeout=30):
             raise RuntimeError("Observador não respondeu na porta 9000.")
 
@@ -191,7 +205,7 @@ def run_single_experiment(mode, nodes, exp_name, rep_idx, num_requests, cs_min, 
         return result
 
     finally:
-        stop_cluster(mode, nodes)
+        stop_cluster(mode, nodes, exp_name)
 
 def export_results(all_results, json_path, csv_path):
     # Exporta JSON
