@@ -69,7 +69,7 @@
             <button class="player-btn" onclick="seekReplay(0)" title="Ir para o Início">⏮️</button>
             <button class="player-btn" onclick="stepBackward()" title="Passo Anterior">◀️</button>
             <button class="player-btn" id="play-pause-btn" onclick="togglePlayPause()" title="Play / Pause">▶️</button>
-            <button class="player-btn" onclick="stepForward()" title="Próximo Passo">▶️</button>
+            <button class="player-btn" onclick="stepForward()" title="Próximo Passo">⏩</button>
             <button class="player-btn" onclick="seekReplay(replayEvents.length - 1)" title="Ir para o Fim">⏭️</button>
         </div>
 
@@ -341,13 +341,19 @@
         let currentReplayIndex = 0;
         let replayIntervalTimer = null;
         let replaySpeed = 400;
+        let replayTrafficBuckets = {};
+        let replayEventSeconds = [];
+        let replayNodeLastEventTime = {};
+        let replaySessionStartSec = 0;
+        let replaySessionEndSec = 0;
 
         // Orquestrador de Carga
         let isWorkloadRunning = false;
 
-        // Taxa de mensagens para o gráfico
+        // Taxa de mensagens para o gráfico (apenas em modo ao vivo)
         let windowMsgs = 0;
         setInterval(() => {
+            if (isReplayMode) return;
             const now = new Date().toLocaleTimeString();
             trafficChart.data.labels.push(now);
             trafficChart.data.datasets[0].data.push(windowMsgs);
@@ -793,6 +799,7 @@
         // STATUS DOS NÓS
         // ==============================================
         function renderNodes() {
+            if (isReplayMode) return;
             const now = Date.now();
             const container = document.getElementById('nodes-container');
             if (!container) return;
@@ -849,6 +856,61 @@
         }
         setInterval(renderNodes, 300);
 
+        function renderNodesReplay(currentEpochMs) {
+            const container = document.getElementById('nodes-container');
+            if (!container) return;
+
+            const sortedNodes = Array.from(knownNodes).sort((a,b) => {
+                const na = parseInt(a.replace('node',''), 10) || 0;
+                const nb = parseInt(b.replace('node',''), 10) || 0;
+                return na - nb;
+            });
+
+            const html = sortedNodes.map(nodeId => {
+                const lastTime = replayNodeLastEventTime[nodeId] || 0;
+                const elapsed = (currentEpochMs && lastTime > 0) ? (currentEpochMs - lastTime) : Infinity;
+                const inCS = currentNodesInCS.has(nodeId);
+                const isViolation = inCS && currentNodesInCS.size > 1;
+                const hasToken = (nodeId === currentTokenHolder);
+
+                let status = 'dead';
+                let emoji = '⚪';
+                let roleSuffix = '';
+
+                if (isViolation) {
+                    status = 'violation';
+                    emoji = '🔴';
+                    roleSuffix = ' <small style="color:#ff4444; font-weight:bold;">⚠️ (VIOLAÇÃO SC)</small>';
+                } else if (inCS) {
+                    status = 'in-cs';
+                    emoji = '⚡';
+                    roleSuffix = ' <small style="color:#ffaa55; font-weight:bold;">(SC)</small>';
+                } else if (lastTime > 0) {
+                    if (elapsed <= 2000) {
+                        status = 'healthy';
+                        emoji = '🟢';
+                    } else if (elapsed <= 6000) {
+                        status = 'warning';
+                        emoji = '🟡';
+                    } else {
+                        status = 'dead';
+                        emoji = '⚪';
+                    }
+                } else {
+                    status = 'dead';
+                    emoji = '⚪';
+                }
+
+                if (!inCS && hasToken) {
+                    roleSuffix = ' <small title="Portador do Token">👑</small>';
+                }
+
+                return `<span class="node-badge node-${status}">${emoji} ${nodeId}${roleSuffix}</span>`;
+            }).join('');
+
+            container.innerHTML = html || '<span class="node-badge">Aguardando participantes...</span>';
+        }
+
         // ==============================================
         // LOGS E TIMELINE
         // ==============================================
@@ -871,25 +933,48 @@
             }
         }
 
-        function addTimeline(type, desc, node) {
-            timelineEvents.push({ type, desc, node, time: new Date().toLocaleTimeString() });
-            if (timelineEvents.length > 50) timelineEvents.shift();
-            renderTimeline();
+        const timelineColors = {
+            'REQUEST': '#1abc9c',
+            'TOKEN': '#9b59b6',
+            'REV_PATH': '#f1c40f',
+            'ENTER': '#e67e22',
+            'EXIT': '#3498db',
+            'COMMITTED': '#2ecc71'
+        };
+
+        function createTimelineElement(e) {
+            const d = document.createElement('div');
+            d.className = 'timeline-item';
+            d.style.borderLeft = `3px solid ${timelineColors[e.type] || '#95a5a6'}`;
+            d.innerHTML = `
+                <div class="timeline-time">${e.time}</div>
+                <div class="timeline-desc"><b>${e.node}</b>: ${e.desc}</div>
+            `;
+            return d;
+        }
+
+        function appendTimelineItem(e) {
+            const c = document.getElementById('timeline-container');
+            if (!c) return;
+            timelineEvents.push(e);
+            if (timelineEvents.length > 50) {
+                timelineEvents.shift();
+                if (c.children.length > 0) c.removeChild(c.firstChild);
+            }
+            c.appendChild(createTimelineElement(e));
+            c.scrollTop = c.scrollHeight;
+        }
+
+        function addTimeline(type, desc, node, timeStr) {
+            const t = timeStr || new Date().toLocaleTimeString();
+            appendTimelineItem({ type, desc, node, time: t });
         }
 
         function renderTimeline() {
-            const colors = {
-                'REQUEST': '#1abc9c',
-                'TOKEN': '#9b59b6',
-                'REV_PATH': '#f1c40f',
-                'ENTER': '#e67e22',
-                'EXIT': '#3498db',
-                'COMMITTED': '#2ecc71'
-            };
             const c = document.getElementById('timeline-container');
             if (!c) return;
             c.innerHTML = timelineEvents.map(e => `
-                <div class="timeline-item" style="border-left: 3px solid ${colors[e.type] || '#95a5a6'};">
+                <div class="timeline-item" style="border-left: 3px solid ${timelineColors[e.type] || '#95a5a6'};">
                     <div class="timeline-time">${e.time}</div>
                     <div class="timeline-desc"><b>${e.node}</b>: ${e.desc}</div>
                 </div>
@@ -1183,15 +1268,263 @@
         // ==============================================
         // PLAYER DE REPLAY QUADRO A QUADRO (CLIENT-SIDE)
         // ==============================================
+        function parseEpochMs(rawTs) {
+            if (!rawTs) return Date.now();
+            try {
+                const t = new Date(rawTs).getTime();
+                return isNaN(t) ? Date.now() : t;
+            } catch {
+                return Date.now();
+            }
+        }
+
+        function formatRecordedTime(rawTs) {
+            if (!rawTs) return new Date().toLocaleTimeString();
+            try {
+                const d = new Date(rawTs);
+                return isNaN(d.getTime()) ? new Date().toLocaleTimeString() : d.toLocaleTimeString();
+            } catch {
+                return new Date().toLocaleTimeString();
+            }
+        }
+
+        function prepareReplayTrafficData(events, startedAt, stoppedAt) {
+            replayTrafficBuckets = {};
+            replayEventSeconds = [];
+            replaySessionStartSec = 0;
+            replaySessionEndSec = 0;
+
+            if (!events || events.length === 0) return;
+
+            let minSec = Infinity;
+            let maxSec = -Infinity;
+
+            if (startedAt) {
+                const s = Math.floor(new Date(startedAt).getTime() / 1000);
+                if (!isNaN(s)) minSec = s;
+            }
+            if (stoppedAt) {
+                const s = Math.floor(new Date(stoppedAt).getTime() / 1000);
+                if (!isNaN(s)) maxSec = s;
+            }
+
+            events.forEach((ev, idx) => {
+                const rawTs = ev._ts || ev.ts;
+                const d = rawTs ? new Date(rawTs) : new Date();
+                let sec = Math.floor(d.getTime() / 1000);
+                if (isNaN(sec)) sec = Math.floor(Date.now() / 1000);
+
+                replayEventSeconds[idx] = sec;
+                replayTrafficBuckets[sec] = (replayTrafficBuckets[sec] || 0) + 1;
+                if (sec < minSec) minSec = sec;
+                if (sec > maxSec) maxSec = sec;
+            });
+
+            if (minSec === Infinity) minSec = Math.floor(Date.now() / 1000);
+            if (maxSec < minSec) maxSec = minSec;
+
+            replaySessionStartSec = minSec;
+            replaySessionEndSec = maxSec;
+        }
+
+        function processEventState(ev) {
+            totalMessages++;
+            const sender = ev.node_id || ev.node || "sistema";
+            const eventEpochMs = parseEpochMs(ev._ts || ev.ts);
+            const timeStr = formatRecordedTime(ev._ts || ev.ts);
+            let topoChanged = false;
+            let logEntry = null;
+            let timelineEntry = null;
+
+            if (sender.startsWith("node")) {
+                knownNodes.add(sender);
+                replayNodeLastEventTime[sender] = eventEpochMs;
+            }
+
+            // 1. Atualizações de Topologia
+            if (ev.type === 'TOPOLOGY') {
+                topoChanged = true;
+                if (ev.edges) {
+                    ev.edges.forEach(e => {
+                        if (e.to === null || e.to === "") {
+                            delete currentFathers[e.from];
+                        } else {
+                            currentFathers[e.from] = e.to;
+                            if (e.from && e.from.startsWith("node")) {
+                                knownNodes.add(e.from);
+                                replayNodeLastEventTime[e.from] = eventEpochMs;
+                            }
+                            if (e.to && e.to.startsWith("node")) {
+                                knownNodes.add(e.to);
+                                replayNodeLastEventTime[e.to] = eventEpochMs;
+                            }
+                        }
+                    });
+                }
+                if (ev.token_holder) {
+                    currentTokenHolder = ev.token_holder;
+                    if (ev.token_holder.startsWith("node")) {
+                        knownNodes.add(ev.token_holder);
+                        replayNodeLastEventTime[ev.token_holder] = eventEpochMs;
+                    }
+                }
+                if (ev.in_cs !== undefined) {
+                    updateNodesInCS(ev.in_cs);
+                    if (Array.isArray(ev.in_cs)) {
+                        ev.in_cs.forEach(n => {
+                            if (n && n.startsWith("node")) {
+                                knownNodes.add(n);
+                                replayNodeLastEventTime[n] = eventEpochMs;
+                            }
+                        });
+                    }
+                }
+            }
+
+            // 2. Fila Distribuída (next_queue)
+            if (ev.type === 'QUEUE') {
+                topoChanged = true;
+                const node = ev.node || ev.node_id;
+                const q = ev.next_queue || [];
+                if (node) {
+                    if (node.startsWith("node")) {
+                        knownNodes.add(node);
+                        replayNodeLastEventTime[node] = eventEpochMs;
+                    }
+                    if (q.length > 0) {
+                        currentNextQueues[node] = q;
+                        q.forEach(nextN => {
+                            if (nextN && nextN.startsWith("node")) {
+                                knownNodes.add(nextN);
+                                replayNodeLastEventTime[nextN] = eventEpochMs;
+                            }
+                        });
+                    } else {
+                        delete currentNextQueues[node];
+                    }
+                }
+            }
+
+            // 3. Logs do Protocolo
+            if (ev.type === 'LOG' || ev.message) {
+                const msg = ev.message || "";
+                const logClass = getLogClass(msg);
+
+                if (msg.includes("REV_PATH")) {
+                    timelineEntry = { type: "REV_PATH", desc: msg.replace(/\[REV_PATH\s*\]/, "").trim(), node: sender, time: timeStr };
+                } else if (msg.includes("TOKEN")) {
+                    timelineEntry = { type: "TOKEN", desc: "Posse de Token transferida", node: sender, time: timeStr };
+                    if (ev.token_holder) {
+                        currentTokenHolder = ev.token_holder;
+                    }
+                    topoChanged = true;
+                } else if (msg.includes("REQUEST")) {
+                    timelineEntry = { type: "REQUEST", desc: "Requisição de CS", node: sender, time: timeStr };
+                } else if (msg.includes("ENTER")) {
+                    currentNodesInCS.add(sender);
+                    timelineEntry = { type: "ENTER", desc: "Entrou na Seção Crítica", node: sender, time: timeStr };
+                    topoChanged = true;
+                } else if (msg.includes("EXIT") || msg.includes("RELEASE")) {
+                    currentNodesInCS.delete(sender);
+                    topoChanged = true;
+                } else if (msg.includes("COMMITTED")) {
+                    csEntries++;
+                }
+
+                logEntry = { msg: `[${timeStr}] ${msg}`, cls: logClass };
+            }
+
+            // 4. Eventos do Observer
+            if (ev.type === 'OBSERVER') {
+                topoChanged = true;
+                if (ev.active_nodes) {
+                    currentNodesInCS = new Set(ev.active_nodes);
+                    ev.active_nodes.forEach(n => {
+                        if (n && n.startsWith("node")) {
+                            knownNodes.add(n);
+                            replayNodeLastEventTime[n] = eventEpochMs;
+                        }
+                    });
+                } else if (ev.event === 'BEGIN') {
+                    currentNodesInCS.add(ev.node_id);
+                    if (ev.node_id && ev.node_id.startsWith("node")) {
+                        knownNodes.add(ev.node_id);
+                        replayNodeLastEventTime[ev.node_id] = eventEpochMs;
+                    }
+                } else if (ev.event === 'END') {
+                    currentNodesInCS.delete(ev.node_id);
+                    if (ev.node_id && ev.node_id.startsWith("node")) {
+                        knownNodes.add(ev.node_id);
+                        replayNodeLastEventTime[ev.node_id] = eventEpochMs;
+                    }
+                }
+                if (ev.overlap) {
+                    overlapCount++;
+                }
+            }
+
+            // 5. Métricas de Tempo de Espera
+            if (ev.type === 'WAIT_TIME' && ev.wait_ms !== undefined) {
+                if (!nodeWaitTimes[sender]) nodeWaitTimes[sender] = [];
+                nodeWaitTimes[sender].push(ev.wait_ms);
+            }
+
+            return {
+                eventEpochMs,
+                timeStr,
+                logEntry,
+                timelineEntry,
+                topoChanged
+            };
+        }
+
+        function updateReplayMetricsAndChart(targetIndex) {
+            if (!trafficChart || replayEvents.length === 0) return;
+
+            const currentSec = replayEventSeconds[targetIndex] || replaySessionStartSec;
+            const windowSeconds = 25;
+            const startSec = Math.max(replaySessionStartSec, currentSec - windowSeconds + 1);
+
+            const labels = [];
+            const data = [];
+            for (let s = startSec; s <= currentSec; s++) {
+                labels.push(new Date(s * 1000).toLocaleTimeString());
+                data.push(replayTrafficBuckets[s] || 0);
+            }
+
+            trafficChart.data.labels = labels;
+            trafficChart.data.datasets[0].data = data;
+            trafficChart.update('none');
+
+            document.getElementById('total-msgs').innerText = totalMessages;
+            document.getElementById('cs-entries').innerText = csEntries;
+            const csEntriesStat = document.getElementById('cs-entries-stat');
+            if (csEntriesStat) csEntriesStat.innerText = csEntries;
+
+            const ovStat = document.getElementById('overlap-stat');
+            if (ovStat) {
+                ovStat.innerText = overlapCount;
+                ovStat.style.color = (overlapCount > 0) ? '#e74c3c' : '#2ecc71';
+            }
+
+            const banner = document.getElementById('violation-banner');
+            if (banner) {
+                banner.style.display = (overlapCount > 0) ? 'flex' : 'none';
+            }
+
+            renderHeatmap();
+            updateCalculatedMetrics();
+        }
+
         async function loadSessionToPlayer(sessionId) {
             closeSessionsModal();
             try {
                 const resp = await fetch(`/replay/sessions/${sessionId}`);
                 const data = await resp.json();
-                
+
                 replayEvents = Array.isArray(data) ? data : (data.events || []);
                 replayInitialState = data.initial_state || null;
-                
+
                 if (replayEvents.length === 0) {
                     alert("Esta sessão não contém eventos registrados.");
                     return;
@@ -1199,6 +1532,8 @@
 
                 isReplayMode = true;
                 currentReplayIndex = 0;
+
+                prepareReplayTrafficData(replayEvents, data.started_at, data.stopped_at);
 
                 document.getElementById('player-session-name').innerText = data.name || sessionId;
                 document.getElementById('player-bar').style.display = 'flex';
@@ -1210,51 +1545,137 @@
                 slider.max = replayEvents.length - 1;
                 slider.value = 0;
 
-                seekReplay(0);
+                seekReplay(0, true);
                 addLog(`[REPLAY] Sessão carregada no Player (${replayEvents.length} eventos).`, "system");
             } catch (e) {
                 alert("Erro ao carregar sessão: " + e);
             }
         }
 
-        function seekReplay(targetIndex) {
-            if (replayEvents.length === 0) return;
-            targetIndex = Math.max(0, Math.min(targetIndex, replayEvents.length - 1));
-            currentReplayIndex = targetIndex;
-
-            // Restaura o estado inicial limpo da gravação
+        function rebuildReplayTo(targetIndex) {
             if (replayInitialState) {
                 const s = replayInitialState;
                 currentFathers = { ...(s.topology?.edges || {}) };
                 currentTokenHolder = s.topology?.token_holder || "node1";
                 updateNodesInCS(s.topology?.in_cs);
                 currentNextQueues = { ...(s.topology?.next_queues || {}) };
+                knownNodes = new Set(s.topology?.known_nodes || ["node1", "node2", "node3", "node4", "node5"]);
                 totalMessages = s.metrics?.total_messages || 0;
                 csEntries = s.metrics?.cs_entries || 0;
                 overlapCount = s.metrics?.overlap_count || 0;
-                nodeWaitTimes = { ...(s.metrics?.node_wait_times || {}) };
+                nodeWaitTimes = {};
+                if (s.metrics?.node_wait_times) {
+                    Object.keys(s.metrics.node_wait_times).forEach(k => {
+                        nodeWaitTimes[k] = [...s.metrics.node_wait_times[k]];
+                    });
+                }
             } else {
                 currentFathers = { "node2": "node1", "node3": "node1", "node4": "node1", "node5": "node1" };
                 currentTokenHolder = "node1";
                 currentNodesInCS.clear();
                 currentNextQueues = {};
+                knownNodes = new Set(["node1", "node2", "node3", "node4", "node5"]);
                 totalMessages = 0;
                 csEntries = 0;
                 overlapCount = 0;
                 nodeWaitTimes = {};
             }
 
-            clearLogs();
-            timelineEvents = [];
+            replayNodeLastEventTime = {};
+            const initEpoch = replaySessionStartSec ? (replaySessionStartSec * 1000) : Date.now();
+            knownNodes.forEach(n => {
+                replayNodeLastEventTime[n] = initEpoch;
+            });
 
-            // Executa sequencialmente até o quadro desejado
+            const logsToRender = [];
+            timelineEvents = [];
+            let lastEventTs = initEpoch;
+
             for (let i = 0; i <= targetIndex; i++) {
-                handleIncomingEvent(replayEvents[i]);
+                const ev = replayEvents[i];
+                const res = processEventState(ev);
+                lastEventTs = res.eventEpochMs || lastEventTs;
+                if (res.logEntry) {
+                    logsToRender.push(res.logEntry);
+                    if (logsToRender.length > 200) logsToRender.shift();
+                }
+                if (res.timelineEntry) {
+                    timelineEvents.push(res.timelineEntry);
+                    if (timelineEvents.length > 50) timelineEvents.shift();
+                }
             }
 
-            // Atualiza os controles do player
+            const logC = document.getElementById('log-container');
+            if (logC) {
+                if (logsToRender.length > 0) {
+                    logC.innerHTML = logsToRender.map(l => `<div class="log-entry log-${l.cls}">${l.msg}</div>`).join('');
+                } else {
+                    logC.innerHTML = '<div class="log-entry log-system">Nenhum evento registrado até este ponto.</div>';
+                }
+                logC.scrollTop = logC.scrollHeight;
+            }
+
+            const tlC = document.getElementById('timeline-container');
+            if (tlC) {
+                if (timelineEvents.length > 0) {
+                    tlC.innerHTML = timelineEvents.map(e => `
+                        <div class="timeline-item" style="border-left: 3px solid ${timelineColors[e.type] || '#95a5a6'};">
+                            <div class="timeline-time">${e.time}</div>
+                            <div class="timeline-desc"><b>${e.node}</b>: ${e.desc}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    tlC.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; padding: 10px;">Linha do tempo vazia neste quadro.</div>';
+                }
+                tlC.scrollTop = tlC.scrollHeight;
+            }
+
+            renderTopology();
+            renderNodesReplay(lastEventTs);
+            updateReplayMetricsAndChart(targetIndex);
+
             document.getElementById('replay-slider').value = targetIndex;
             document.getElementById('replay-counter').innerText = `${targetIndex + 1} / ${replayEvents.length}`;
+        }
+
+        function applyReplayIncrementalStep(stepIndex) {
+            if (stepIndex < 0 || stepIndex >= replayEvents.length) return;
+            currentReplayIndex = stepIndex;
+
+            const ev = replayEvents[stepIndex];
+            const res = processEventState(ev);
+
+            if (res.logEntry) {
+                addLog(res.logEntry.msg, res.logEntry.cls);
+            }
+            if (res.timelineEntry) {
+                appendTimelineItem(res.timelineEntry);
+            }
+            if (res.topoChanged) {
+                renderTopology();
+            }
+
+            renderNodesReplay(res.eventEpochMs);
+            updateReplayMetricsAndChart(stepIndex);
+
+            document.getElementById('replay-slider').value = stepIndex;
+            document.getElementById('replay-counter').innerText = `${stepIndex + 1} / ${replayEvents.length}`;
+        }
+
+        function seekReplay(targetIndex, forceRebuild = false) {
+            if (replayEvents.length === 0) return;
+            targetIndex = Math.max(0, Math.min(targetIndex, replayEvents.length - 1));
+
+            if (!forceRebuild && targetIndex === currentReplayIndex) {
+                return;
+            }
+
+            if (!forceRebuild && targetIndex === currentReplayIndex + 1) {
+                applyReplayIncrementalStep(targetIndex);
+            } else {
+                currentReplayIndex = targetIndex;
+                rebuildReplayTo(targetIndex);
+            }
         }
 
         function stepForward() {
@@ -1317,6 +1738,9 @@
             pauseReplay();
             isReplayMode = false;
             replayEvents = [];
+            replayTrafficBuckets = {};
+            replayEventSeconds = [];
+            replayNodeLastEventTime = {};
             document.getElementById('player-bar').style.display = 'none';
             document.getElementById('test-controls-bar').style.display = 'flex';
             const manualBar = document.getElementById('manual-controls-bar');

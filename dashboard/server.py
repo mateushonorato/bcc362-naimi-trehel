@@ -425,7 +425,14 @@ async def websocket_endpoint(ws: WebSocket):
     }))
     try:
         while True:
-            await ws.receive_text()
+            data = await ws.receive_text()
+            if data == "GET_STATE":
+                await ws.send_text(json.dumps({
+                    "type": "INIT",
+                    "state": cluster_state,
+                    "workload": workload_status,
+                    "scale": current_scale
+                }))
     except WebSocketDisconnect:
         manager.disconnect(ws)
 
