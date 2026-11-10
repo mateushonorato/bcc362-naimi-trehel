@@ -273,6 +273,12 @@ usage: collect_metrics.py [-h] [--mode {local,swarm}] [--nodes {5,10,both}]
   python3 collect_metrics.py --mode local --nodes 10 --experiments high --repetitions 3
   ```
 
+- **Gerar gráficos e figuras para análise teórica:**
+  ```bash
+  python3 generate_charts.py
+  # ou diretamente: python3 results/generate_charts.py
+  ```
+
 ---
 
 ### 7.2. Especificações do Ambiente de Testes
@@ -353,6 +359,10 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
   - O acréscimo médio de mensagens observado ao passar de 5 para 10 nós foi de apenas $+0{,}67$ (Normal), $+0{,}73$ (Alta) e $+0{,}90$ (Desigual).
   - O valor teórico de acréscimo harmônico é $\ln(10) - \ln(5) = \ln(2) \approx 0{,}693$ mensagens adicionais. A correspondência entre o modelo analítico e a medição empírica é quase exata, refutando a escala linear $\mathcal{O}(N)$ característica de algoritmos em anel (Token Ring), que teria dobrado o número de mensagens de $2{,}5$ para $5{,}0$.
 
+<p align="center">
+  <img src="results/charts/01_complexidade_mensagens.png" alt="Complexidade de Mensagens Naimi-Tréhel vs. Anel Lógico" width="850">
+</p>
+
 #### 3. Dinâmica de Espera e Fila FIFO (*Liveness* e Ausência de Starvation)
 - Sob **Alta Contenção**, os clientes solicitam o recurso sem pausa (`CLIENT_MIN_SLEEP=0`). A espera deixa de ser dominada por intervalos ociosos e passa a refletir o esvaziamento sequencial da fila distribuída `next_queue`.
 - Sendo a permanência na seção crítica uniformemente distribuída entre $0{,}2\text{ s}$ e $1{,}0\text{ s}$ ($\mu = 0{,}6\text{ s}$):
@@ -360,11 +370,19 @@ $$\bar{M}(N) = H_{N-1} + 1 \approx \ln(N - 1) + \gamma + 1$$
   - Em 10 nós: um nó enfileirado espera em média $9 \times 0{,}6\text{ s} \approx 5{,}4\text{ s}$. A mediana empírica medida foi de **5.318 ms** (~5.32 s).
 - A correspondência confirma a ordenação estrita FIFO de `next_queue` e comprova matematicamente a **ausência de starvation**: nenhum processo foi ultrapassado arbitrariamente ou retido além do tempo determinístico de serviço dos predecessores.
 
+<p align="center">
+  <img src="results/charts/02_espera_fila_fifo.png" alt="Espera Mediana sob Alta Contenção vs. Previsão Teórica FIFO" width="850">
+</p>
+
 #### 4. Efeito de Localidade na Carga Desigual
 - No cenário de **Carga Desigual**, onde `client1` realizou requisições frequentes (intervalo de $0{,}1\text{ s}$ a $0{,}3\text{ s}$ contra $1\text{ a }5\text{ s}$ dos demais), o número médio de mensagens por entrada sofreu redução:
   - 5 nós: caiu de $2{,}86$ (Normal) para **2.58 msgs/entrada**.
   - 10 nós: caiu de $3{,}53$ (Normal) para **3.48 msgs/entrada**.
 - **Explicação Teórica:** Quando o `node1` recebe novas requisições em rajada enquanto ainda detém a posse do token (`has_token == True`), a entrada na seção crítica é concedida localmente sem nenhuma troca de mensagens pela rede (`0 msgs`). A reversão de caminhos otimiza naturalmente rajadas locais, beneficiando nós com maior demanda sem penalizar a garantia de repasse aos demais nós enfileirados.
+
+<p align="center">
+  <img src="results/charts/03_efeito_localidade.png" alt="Efeito de Localidade e Reuso do Token na Carga Desigual" width="850">
+</p>
 
 ---
 
@@ -448,6 +466,10 @@ A comparação direta entre os dados coletados no host de desenvolvimento (Local
   - Local: **5.317,99 ms**
   - Nuvem: **5.704,11 ms** (+386,12 ms)
   - O aumento de ~386 ms na fila com 10 participantes sob contenção contínua reflete diretamente o custo cumulativo do Round-Trip Time (RTT) e do processamento de rede nas 3 VMs distintas à medida que `REQUEST` e `TOKEN` percorrem múltiplos nós físicos.
+
+<p align="center">
+  <img src="results/charts/04_overhead_rede_local_vs_nuvem.png" alt="Comparativo de Latência de Espera: Local vs. Nuvem OCI" width="850">
+</p>
 
 #### 3. Robustez e Eficácia da Exclusão Mútua (*Zero Violations*)
 - Sob ambas as infraestruturas, a sincronização do Cluster Sync atingiu **100% de sucesso**:
