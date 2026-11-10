@@ -138,8 +138,6 @@
                 <div class="legend-item"><span class="legend-box box-cs"></span> ⚡ Na Seção Crítica (Exclusivo)</div>
                 <div class="legend-item"><span class="legend-box box-violation"></span> ⚠️ Violação SC (Múltiplos)</div>
                 <div class="legend-item"><span class="legend-box box-node"></span> 🔵 Nó do Cluster</div>
-                <div class="legend-item" style="color: #38bdf8;">──► Ponteiro Father</div>
-                <div class="legend-item" style="color: #f97316;">- -► Fila Next (FIFO)</div>
             </div>
 
             <div id="mermaid-graph" style="min-height: 280px; display: flex; align-items: center; justify-content: center; color: #aaa;">
@@ -369,7 +367,7 @@
 
                     if (hasToken) label += " 👑 (Token)";
                     if (inCS) {
-                        label += (currentNodesInCS.size > 1) ? " ⚠️ (VIOLAÇÃO SC)" : " ⚡ (SC)";
+                        label += (currentNodesInCS.size > 1) ? " ⚠️ (SC)" : " ⚡ (SC)";
                     }
                     code += `    ${nodeId}["${label}"]\n`;
                 });
