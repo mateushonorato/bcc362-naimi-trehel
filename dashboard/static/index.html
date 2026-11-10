@@ -769,13 +769,13 @@
             }
             if (scale === 10) {
                 html += `
-                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node8'])">⚡ Disputar Nós 3 e 8 (Fila FIFO)</button>
-                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node6', 'node10'])">⚡ Disputar Nós 2, 6 e 10 (Fila 3 nós)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node8'])">⚡ Disputar Nós 3 e 8</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node6', 'node10'])">⚡ Disputar Nós 2, 6 e 10</button>
                 `;
             } else {
                 html += `
-                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nós 3 e 5 (Gera Fila FIFO)</button>
-                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4 (Fila 3 nós)</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node3', 'node5'])">⚡ Disputar Nós 3 e 5</button>
+                    <button class="btn-node-step btn-contest" onclick="triggerConcurrentContest(['node2', 'node3', 'node4'])">⚡ Disputar Nós 2, 3 e 4</button>
                 `;
             }
             group.innerHTML = html;
