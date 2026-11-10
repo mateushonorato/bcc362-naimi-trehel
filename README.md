@@ -251,11 +251,6 @@ usage: collect_metrics.py [-h] [--mode {local,swarm}] [--nodes {5,10,both}]
                           [--append] [--json-out JSON_OUT] [--csv-out CSV_OUT]
 ```
 
-> [!TIP]
-> Os dados coletados são salvos automaticamente no diretório `results/`:
-> - **Modo local (`--mode local`):** `results/metrics_results_local.csv` e `results/metrics_results_local.json`
-> - **Modo nuvem (`--mode swarm`):** `results/metrics_results_swarm.csv` e `results/metrics_results_swarm.json`
-
 #### Comandos de Execução Rápida
 
 - **Executar benchmark completo local (5 e 10 nós, todos os testes, 3 repetições):**
