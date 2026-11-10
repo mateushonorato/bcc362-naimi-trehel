@@ -71,6 +71,8 @@ Considere $N$ processos participantes no Cluster Sync:
 | **Raymond** | Árvore estática fixa (não rotacionada) | $\mathcal{O}(\log N)$ (se árvore balanceada) | $\mathcal{O}(N)$ (se degenerada em lista) | **Zero** tráfego ocioso. Topologias fixas geram sobrecarga desproporcional sobre nós centrais e raízes fixas. |
 | **Token Ring** | Anel lógico unidirecional | $\mathcal{O}(N)$ (média de $N/2$ saltos) | $\mathcal{O}(N)$ ($N-1$ saltos) | Gera **tráfego constante** mesmo sem requisições (passagem contínua do bastão), impondo alta latência em anéis grandes. |
 
+O custo médio $\mathcal{O}(\log N)$ do Naimi–Tréhel é **amortizado**: ele pressupõe contenção concorrente suficiente para que a reversão de caminhos mantenha a árvore lógica achatada. O **pior caso** $\mathcal{O}(N)$ ocorre quando os pedidos chegam estritamente em sequência a partir do último nó da cadeia — antes que qualquer reversão encurte os caminhos. Nessa configuração inicial, o `father` de cada nó aponta para o anterior em fila única (cadeia linear), e a mensagem `Request` percorre até $N-1$ saltos para atingir o portador do token. À medida que as requisições se sobrepõem temporalmente, cada reversão elimina intermediários desnecessários, fazendo o custo amortizado convergir ao regime logarítmico previsto pelo paper de Naimi, Tréhel e Arnold (1996).
+
 ---
 
 ## 3. Estrutura do Repositório e Dependências
