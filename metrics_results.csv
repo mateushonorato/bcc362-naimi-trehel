@@ -1,0 +1,13 @@
+experiment,mode,nodes_count,repetition,seed,num_requests_per_client,expected_total,total_completed,overlap_events,max_concurrent,wall_time_s,total_protocol_msgs,total_acquisitions,msgs_per_entry,overall_median_wait_ms
+normal_contention,local,5,1,52,10,50,50,0,1,41.09,144,50,2.88,171.88
+normal_contention,local,5,2,62,10,50,50,0,1,41.09,143,50,2.86,444.39
+normal_contention,local,5,3,72,10,50,50,0,1,40.09,142,50,2.84,225.12
+high_contention,local,5,1,52,10,50,50,0,1,33.07,147,50,2.94,2622.31
+high_contention,local,5,2,62,10,50,50,0,1,29.06,147,50,2.94,2217.99
+high_contention,local,5,3,72,10,50,50,0,1,31.08,147,50,2.94,2439.09
+normal_contention,local,10,1,52,10,100,100,0,1,61.12,355,100,3.55,2588.68
+normal_contention,local,10,2,62,10,100,100,0,1,66.14,352,100,3.52,2460.86
+normal_contention,local,10,3,72,10,100,100,0,1,58.12,351,100,3.51,2415.54
+high_contention,local,10,1,52,10,100,100,0,1,59.12,375,100,3.75,5180.63
+high_contention,local,10,2,62,10,100,100,0,1,59.13,354,100,3.54,5346.44
+high_contention,local,10,3,72,10,100,100,0,1,61.14,372,100,3.72,5426.89

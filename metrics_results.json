@@ -1,0 +1,866 @@
+[
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 1,
+    "seed": 52,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 41.09,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 144,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.88,
+    "overall_median_wait_ms": 171.88,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 8.28,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 534.93,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 413.53,
+        "has_token": true
+      },
+      "node4": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 171.88,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 117.0,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 2,
+    "seed": 62,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 41.09,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 143,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.86,
+    "overall_median_wait_ms": 444.39,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 365.51,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 26,
+        "acquisitions": 10,
+        "median_wait_ms": 444.39,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 27,
+        "acquisitions": 10,
+        "median_wait_ms": 292.89,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 537.86,
+        "has_token": true
+      },
+      "node5": {
+        "protocol_msgs_sent": 30,
+        "acquisitions": 10,
+        "median_wait_ms": 617.89,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 3,
+    "seed": 72,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 40.09,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 142,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.84,
+    "overall_median_wait_ms": 225.12,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 31,
+        "acquisitions": 10,
+        "median_wait_ms": 175.6,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 597.5,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 190.59,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 25,
+        "acquisitions": 10,
+        "median_wait_ms": 225.12,
+        "has_token": true
+      },
+      "node5": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 515.87,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 1,
+    "seed": 52,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 33.07,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 147,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.94,
+    "overall_median_wait_ms": 2622.31,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 2622.31,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2739.15,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2540.63,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 2803.95,
+        "has_token": true
+      },
+      "node5": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2279.64,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 2,
+    "seed": 62,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 29.06,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 147,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.94,
+    "overall_median_wait_ms": 2217.99,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 2350.43,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2217.99,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2106.2,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2345.17,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 2144.64,
+        "has_token": true
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 5,
+    "repetition": 3,
+    "seed": 72,
+    "num_requests_per_client": 10,
+    "expected_total": 50,
+    "total_completed": 50,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 31.08,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 147,
+    "total_acquisitions": 50,
+    "msgs_per_entry": 2.94,
+    "overall_median_wait_ms": 2439.09,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 2565.95,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 28,
+        "acquisitions": 10,
+        "median_wait_ms": 2220.4,
+        "has_token": true
+      },
+      "node3": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2509.58,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2401.35,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2439.09,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 1,
+    "seed": 52,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 61.12,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 355,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.55,
+    "overall_median_wait_ms": 2588.68,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 43,
+        "acquisitions": 10,
+        "median_wait_ms": 2927.57,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 2536.51,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 2247.69,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 38,
+        "acquisitions": 10,
+        "median_wait_ms": 2640.12,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 31,
+        "acquisitions": 10,
+        "median_wait_ms": 2588.68,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 2879.81,
+        "has_token": true
+      },
+      "node7": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 2769.3,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 33,
+        "acquisitions": 10,
+        "median_wait_ms": 2279.99,
+        "has_token": false
+      },
+      "node9": {
+        "protocol_msgs_sent": 39,
+        "acquisitions": 10,
+        "median_wait_ms": 2025.97,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 2446.44,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 2,
+    "seed": 62,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 66.14,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 352,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.52,
+    "overall_median_wait_ms": 2460.86,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 43,
+        "acquisitions": 10,
+        "median_wait_ms": 2810.12,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 2462.93,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 40,
+        "acquisitions": 10,
+        "median_wait_ms": 1692.76,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 2698.8,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 2165.86,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 33,
+        "acquisitions": 10,
+        "median_wait_ms": 2266.08,
+        "has_token": false
+      },
+      "node7": {
+        "protocol_msgs_sent": 31,
+        "acquisitions": 10,
+        "median_wait_ms": 2460.86,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 29,
+        "acquisitions": 10,
+        "median_wait_ms": 2306.5,
+        "has_token": true
+      },
+      "node9": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 2489.44,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 1943.26,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "normal_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 3,
+    "seed": 72,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 58.12,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      1.0,
+      5.0
+    ],
+    "total_protocol_msgs": 351,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.51,
+    "overall_median_wait_ms": 2415.54,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 45,
+        "acquisitions": 10,
+        "median_wait_ms": 2415.54,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 1876.54,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 2177.27,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 2043.68,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 2248.76,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 2748.27,
+        "has_token": false
+      },
+      "node7": {
+        "protocol_msgs_sent": 33,
+        "acquisitions": 10,
+        "median_wait_ms": 2561.91,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 32,
+        "acquisitions": 10,
+        "median_wait_ms": 1907.06,
+        "has_token": false
+      },
+      "node9": {
+        "protocol_msgs_sent": 30,
+        "acquisitions": 10,
+        "median_wait_ms": 2611.24,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 2476.2,
+        "has_token": true
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 1,
+    "seed": 52,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 59.12,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 375,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.75,
+    "overall_median_wait_ms": 5180.63,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 48,
+        "acquisitions": 10,
+        "median_wait_ms": 5262.4,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 5055.4,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 4821.04,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5227.62,
+        "has_token": true
+      },
+      "node5": {
+        "protocol_msgs_sent": 38,
+        "acquisitions": 10,
+        "median_wait_ms": 5091.78,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5529.74,
+        "has_token": false
+      },
+      "node7": {
+        "protocol_msgs_sent": 38,
+        "acquisitions": 10,
+        "median_wait_ms": 5198.79,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5077.59,
+        "has_token": false
+      },
+      "node9": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 4906.97,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 5180.63,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 2,
+    "seed": 62,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 59.13,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 354,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.54,
+    "overall_median_wait_ms": 5346.44,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 39,
+        "acquisitions": 10,
+        "median_wait_ms": 5363.3,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 33,
+        "acquisitions": 10,
+        "median_wait_ms": 5400.39,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 5132.9,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 5286.06,
+        "has_token": true
+      },
+      "node5": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5474.47,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 5224.55,
+        "has_token": false
+      },
+      "node7": {
+        "protocol_msgs_sent": 36,
+        "acquisitions": 10,
+        "median_wait_ms": 5179.54,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5346.44,
+        "has_token": false
+      },
+      "node9": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5181.54,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5463.72,
+        "has_token": false
+      }
+    }
+  },
+  {
+    "experiment": "high_contention",
+    "mode": "local",
+    "nodes_count": 10,
+    "repetition": 3,
+    "seed": 72,
+    "num_requests_per_client": 10,
+    "expected_total": 100,
+    "total_completed": 100,
+    "overlap_events": 0,
+    "max_concurrent": 1,
+    "wall_time_s": 61.14,
+    "cs_duration_range": [
+      0.2,
+      1.0
+    ],
+    "client_sleep_range": [
+      0.0,
+      0.0
+    ],
+    "total_protocol_msgs": 372,
+    "total_acquisitions": 100,
+    "msgs_per_entry": 3.72,
+    "overall_median_wait_ms": 5426.89,
+    "nodes_detail": {
+      "node1": {
+        "protocol_msgs_sent": 46,
+        "acquisitions": 10,
+        "median_wait_ms": 5434.42,
+        "has_token": false
+      },
+      "node2": {
+        "protocol_msgs_sent": 33,
+        "acquisitions": 10,
+        "median_wait_ms": 5401.29,
+        "has_token": false
+      },
+      "node3": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5409.45,
+        "has_token": false
+      },
+      "node4": {
+        "protocol_msgs_sent": 35,
+        "acquisitions": 10,
+        "median_wait_ms": 5508.13,
+        "has_token": false
+      },
+      "node5": {
+        "protocol_msgs_sent": 39,
+        "acquisitions": 10,
+        "median_wait_ms": 5468.7,
+        "has_token": false
+      },
+      "node6": {
+        "protocol_msgs_sent": 39,
+        "acquisitions": 10,
+        "median_wait_ms": 5267.74,
+        "has_token": false
+      },
+      "node7": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 5477.81,
+        "has_token": false
+      },
+      "node8": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 5170.3,
+        "has_token": false
+      },
+      "node9": {
+        "protocol_msgs_sent": 37,
+        "acquisitions": 10,
+        "median_wait_ms": 5426.89,
+        "has_token": false
+      },
+      "node10": {
+        "protocol_msgs_sent": 34,
+        "acquisitions": 10,
+        "median_wait_ms": 5132.03,
+        "has_token": true
+      }
+    }
+  }
+]
