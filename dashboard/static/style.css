@@ -32,7 +32,7 @@ header {
 
 /* BOTÕES */
 .chaos-controls { display: flex; gap: 8px; flex-wrap: wrap; }
-.chaos-controls button, .btn-attack {
+.chaos-controls button, .btn-attack, button.btn-success, button.btn-danger, button.btn-primary, button.btn-warning, button.btn-info, button.btn-secondary {
     padding: 8px 14px;
     font-size: 0.85em;
     font-weight: bold;
@@ -41,8 +41,15 @@ header {
     cursor: pointer;
     transition: all 0.2s;
     color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
-.chaos-controls button:hover, .btn-attack:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+.chaos-controls button:hover, .btn-attack:hover, button.btn-success:hover, button.btn-danger:hover, button.btn-primary:hover, button.btn-warning:hover, button.btn-info:hover, button.btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+}
 
 .btn-danger { background: #e74c3c; }
 .btn-warning { background: #f39c12; }
