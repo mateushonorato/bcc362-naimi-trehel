@@ -82,7 +82,7 @@ services:
       - "8004:8000"
     deploy:
       placement:
-        constraints: [node.labels.vm == vm1]
+        constraints: [node.labels.vm == vm2]
 
   node5:
     image: cluster-sync:latest
@@ -133,7 +133,7 @@ services:
       - "8007:8000"
     deploy:
       placement:
-        constraints: [node.labels.vm == vm2]
+        constraints: [node.labels.vm == vm3]
 
   node8:
     image: cluster-sync:latest
@@ -256,7 +256,7 @@ services:
       restart_policy:
         condition: none
       placement:
-        constraints: [node.labels.vm == vm1]
+        constraints: [node.labels.vm == vm2]
 
   client5:
     image: cluster-sync:latest

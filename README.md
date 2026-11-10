@@ -165,10 +165,10 @@ A implantação em nuvem distribui os contêineres entre **3 máquinas virtuais 
   - **VM 2 (`vm2` — Worker):** `node2`, `node3`, `client2`, `client3`
   - **VM 3 (`vm3` — Worker):** `node4`, `node5`, `client4`, `client5`
 
-- **Topologia de 10 nós (`docker-stack-10nodes.yml`):**
-  - **VM 1 (`vm1` — Manager):** `observer`, `node1`, `node2`, `node3`, `node4`, `client1`, `client2`, `client3`, `client4`
-  - **VM 2 (`vm2` — Worker):** `node5`, `node6`, `node7`, `client5`, `client6`, `client7`
-  - **VM 3 (`vm3` — Worker):** `node8`, `node9`, `node10`, `client8`, `client9`, `client10`
+- **Topologia de 10 nós (`docker-stack-10nodes.yml` — distribuição simétrica balanceada de 7 contêineres por VM):**
+  - **VM 1 (`vm1` — Manager, 7 contêineres):** `observer`, `node1`, `node2`, `node3`, `client1`, `client2`, `client3`
+  - **VM 2 (`vm2` — Worker, 7 contêineres):** `node4`, `node5`, `node6`, `client4`, `client5`, `client6`, `client7`
+  - **VM 3 (`vm3` — Worker, 7 contêineres):** `node7`, `node8`, `node9`, `node10`, `client8`, `client9`, `client10`
 
 ### Passo 1: Configurar Regras de Firewall nas VMs e VCN
 Na Security List da sub-rede da OCI e no firewall interno de cada VM, libere as portas do Swarm e dos serviços:
