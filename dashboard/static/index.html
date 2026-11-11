@@ -6,7 +6,7 @@
     <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20261111_07">
+    <link rel="stylesheet" href="/static/style.css?v=20261111_08">
     <style>
         .topology-legend {
             display: flex;
@@ -97,6 +97,14 @@
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
+            margin: auto 0;
+            width: 100%;
+        }
+        #heatmap-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        #heatmap-container {
             margin: auto 0;
             width: 100%;
         }
@@ -869,16 +877,53 @@
                 return;
             }
 
-            const html = entries.sort().map(([nodeId, times]) => {
+            // Ordena os nós numericamente (node1, node2, ..., node10)
+            const sortedEntries = entries.slice().sort((a, b) => {
+                const na = parseInt(a[0].replace('node', ''), 10) || 0;
+                const nb = parseInt(b[0].replace('node', ''), 10) || 0;
+                return na - nb;
+            });
+
+            // Calcula mediana rigorosa e média para cada nó
+            const nodeStats = sortedEntries.map(([nodeId, times]) => {
                 const sorted = [...times].sort((a,b) => a - b);
-                const median = sorted[Math.floor(sorted.length / 2)] || 0;
-                const intensity = Math.min(median / 4000, 1.0);
-                const color = `rgba(230, 126, 34, ${0.4 + intensity * 0.6})`;
+                const len = sorted.length;
+                const median = (len % 2 === 0 && len > 0)
+                    ? (sorted[len / 2 - 1] + sorted[len / 2]) / 2
+                    : (sorted[Math.floor(len / 2)] || 0);
+                const sum = times.reduce((acc, v) => acc + v, 0);
+                const mean = len > 0 ? (sum / len) : 0;
+                return { nodeId, times, median, mean };
+            });
+
+            // Escala dinâmica relativa baseada no maior valor do cluster
+            const maxMedian = Math.max(...nodeStats.map(s => s.median), 1);
+
+            const html = nodeStats.map(({ nodeId, times, median, mean }) => {
+                const pct = maxMedian > 0 ? (median / maxMedian) : 0;
+                // Largura entre 18% (mínimo para texto) e 95%
+                const barWidth = Math.max(pct * 95, 18);
+
+                // Gradiente heatmap intuitivo
+                let bgColor, borderColor;
+                if (median < 25) {
+                    bgColor = "rgba(46, 204, 113, 0.4)";
+                    borderColor = "#2ecc71";
+                } else if (median < 150) {
+                    bgColor = "rgba(241, 196, 15, 0.4)";
+                    borderColor = "#f1c40f";
+                } else if (median < 250) {
+                    bgColor = "rgba(230, 126, 34, 0.5)";
+                    borderColor = "#e67e22";
+                } else {
+                    bgColor = "rgba(231, 76, 60, 0.55)";
+                    borderColor = "#e74c3c";
+                }
 
                 return `
                     <div class="heatmap-row">
                         <span class="heatmap-node">${nodeId}</span>
-                        <div class="heatmap-bar" style="background: ${color}; width: ${Math.max(intensity * 100, 15)}%;">
+                        <div class="heatmap-bar" style="background: ${bgColor}; border: 1px solid ${borderColor}; width: ${barWidth.toFixed(1)}%;" title="${nodeId}: Mediana = ${median.toFixed(1)} ms | Média = ${mean.toFixed(1)} ms (${times.length} amostras)">
                             ${median.toFixed(1)} ms
                         </div>
                     </div>
@@ -891,7 +936,10 @@
         function updateCalculatedMetrics() {
             const allWaits = Object.values(nodeWaitTimes).flat().sort((a,b) => a - b);
             if (allWaits.length > 0) {
-                const median = allWaits[Math.floor(allWaits.length / 2)];
+                const len = allWaits.length;
+                const median = (len % 2 === 0)
+                    ? (allWaits[len / 2 - 1] + allWaits[len / 2]) / 2
+                    : allWaits[Math.floor(len / 2)];
                 document.getElementById('avg-rt').innerText = `${median.toFixed(1)} ms`;
             } else {
                 document.getElementById('avg-rt').innerText = '0 ms';
