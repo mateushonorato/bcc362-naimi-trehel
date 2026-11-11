@@ -82,27 +82,94 @@ def get_docker_project_name() -> str:
     return ""
 
 
+def is_docker_swarm() -> bool:
+    """Detecta se o cluster atual está rodando sob Docker Swarm ativo."""
+    try:
+        res = subprocess.run(
+            ["docker", "info", "--format", "{{.Swarm.LocalNodeState}}"],
+            capture_output=True, text=True, timeout=3
+        )
+        if res.returncode == 0 and res.stdout.strip() == "active":
+            res_svc = subprocess.run(
+                ["docker", "service", "ls", "-q"],
+                capture_output=True, text=True, timeout=3
+            )
+            return res_svc.returncode == 0 and bool(res_svc.stdout.strip())
+    except Exception:
+        pass
+    return False
+
+
+def get_swarm_node_services() -> dict[int, str]:
+    """Retorna dicionário {i: service_name} dos serviços de nós no Docker Swarm."""
+    mapping = {}
+    try:
+        res = subprocess.run(
+            ["docker", "service", "ls", "--format", "{{.Name}}"],
+            capture_output=True, text=True, timeout=5
+        )
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                name = line.strip()
+                for i in range(1, 11):
+                    if name == f"node{i}" or name.endswith(f"_node{i}"):
+                        mapping[i] = name
+    except Exception as e:
+        print(f"[WARN] Erro ao listar serviços Swarm: {e}", flush=True)
+    return mapping
+
+
 def set_cluster_scale_containers(scale: int):
-    """Sobe ou para contêineres node6..node10 via Docker Compose dinamicamente."""
-    host_project_dir = get_host_project_dir()
-    compose_f1 = "/app/docker-compose.yml" if os.path.exists("/app/docker-compose.yml") else "docker-compose.yml"
-    compose_f2 = "/app/docker-compose.ten-nodes.yml" if os.path.exists("/app/docker-compose.ten-nodes.yml") else "docker-compose.ten-nodes.yml"
+    """Sobe ou para contêineres node6..node10 dinamicamente (compatível com Swarm e Compose)."""
+    if is_docker_swarm():
+        swarm_services = get_swarm_node_services()
+        targets = [swarm_services[i] for i in range(6, 11) if i in swarm_services]
+        if targets:
+            rep = 1 if scale == 10 else 0
+            scale_args = " ".join([f"{svc}={rep}" for svc in targets])
+            cmd = f"docker service scale {scale_args}"
+            print(f"[SCALE SWARM] Executing: {cmd}", flush=True)
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+            if res.returncode != 0:
+                print(f"[SCALE SWARM ERROR] {res.stderr}", flush=True)
+            else:
+                print(f"[SCALE SWARM SUCCESS] Escalado {targets} para {rep} réplicas.", flush=True)
+        else:
+            print("[WARN] Serviços node6..node10 não encontrados no Docker Swarm.", flush=True)
+    else:
+        # Modo Docker Compose (Local)
+        host_project_dir = get_host_project_dir()
+        compose_f1 = "/app/docker-compose.yml" if os.path.exists("/app/docker-compose.yml") else "docker-compose.yml"
+        compose_f2 = "/app/docker-compose.ten-nodes.yml" if os.path.exists("/app/docker-compose.ten-nodes.yml") else "docker-compose.ten-nodes.yml"
 
-    proj_dir_arg = f"--project-directory {host_project_dir}" if host_project_dir else ""
-    proj_name = get_docker_project_name()
-    proj_name_arg = f"-p {proj_name}" if proj_name else ""
+        proj_dir_arg = f"--project-directory {host_project_dir}" if host_project_dir else ""
+        proj_name = get_docker_project_name()
+        proj_name_arg = f"-p {proj_name}" if proj_name else ""
 
+        if scale == 10:
+            cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} up -d node6 node7 node8 node9 node10"
+        else:
+            cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} stop -t 1 node6 node7 node8 node9 node10"
+
+        print(f"[SCALE COMPOSE] Executing: {cmd}", flush=True)
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"[SCALE ERROR] {res.stderr}", flush=True)
+        else:
+            print(f"[SCALE SUCCESS] Cluster scale set to {scale} nodes.", flush=True)
+
+    # Quando escala para 10 nós, aguarda até 4 segundos para que os nós 6..10 estejam respondendo
     if scale == 10:
-        cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} up -d node6 node7 node8 node9 node10"
-    else:
-        cmd = f"docker compose {proj_name_arg} -f {compose_f1} -f {compose_f2} {proj_dir_arg} stop -t 1 node6 node7 node8 node9 node10"
-
-    print(f"[SCALE] Executing: {cmd}", flush=True)
-    res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(f"[SCALE ERROR] {res.stderr}", flush=True)
-    else:
-        print(f"[SCALE SUCCESS] Cluster scale set to {scale} nodes.", flush=True)
+        for i in range(6, 11):
+            url = resolve_node_url(f"node{i}")
+            for _ in range(20):
+                try:
+                    req = urllib.request.Request(f"{url}/status", headers={"Accept": "application/json"})
+                    with urllib.request.urlopen(req, timeout=1) as resp:
+                        if resp.status == 200:
+                            break
+                except Exception:
+                    time.sleep(0.2)
 
 
 def sync_cluster_topology_scale(scale: int):
