@@ -521,16 +521,20 @@ async def change_scale(request: Request):
     if scale not in [5, 10]:
         return JSONResponse(status_code=400, content={"error": "Escala inválida (use 5 ou 10)"})
 
-    current_scale = scale
-    await asyncio.to_thread(set_cluster_scale_containers, scale)
-    sync_cluster_topology_scale(scale)
+    try:
+        current_scale = scale
+        await asyncio.to_thread(set_cluster_scale_containers, scale)
+        sync_cluster_topology_scale(scale)
 
-    await manager.broadcast({
-        "type": "SCALE_CHANGED",
-        "scale": scale,
-        "state": cluster_state
-    })
-    return {"status": "ok", "scale": scale, "state": cluster_state}
+        await manager.broadcast({
+            "type": "SCALE_CHANGED",
+            "scale": scale,
+            "state": cluster_state
+        })
+        return {"status": "ok", "scale": scale, "state": cluster_state}
+    except Exception as e:
+        print(f"[ERROR] Erro ao alterar escala: {e}", flush=True)
+        return JSONResponse(status_code=500, content={"error": str(e), "scale": current_scale})
 
 
 # ---------------------------------------------------------------------------

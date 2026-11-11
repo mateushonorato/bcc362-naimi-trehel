@@ -1232,14 +1232,23 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ scale })
                 });
-                const d = await resp.json();
+                let d = null;
+                try {
+                    d = await resp.json();
+                } catch (_) {
+                    const txt = await resp.text();
+                    throw new Error(txt || `HTTP ${resp.status}`);
+                }
+                if (!resp.ok) {
+                    throw new Error((d && d.error) ? d.error : `HTTP ${resp.status}`);
+                }
                 if (d && d.state) {
                     handleIncomingEvent({ type: 'INIT', state: d.state, scale });
                 }
                 addLog(`[ESCALA] Cluster com ${scale} nós ativo com sucesso.`, "system");
             } catch (e) {
                 console.error("Erro ao alterar escala:", e);
-                addLog(`[ERRO] Falha ao reconfigurar escala: ${e}`, "system");
+                addLog(`[ERRO] Falha ao reconfigurar escala: ${e.message || e}`, "system");
             }
         }
 
