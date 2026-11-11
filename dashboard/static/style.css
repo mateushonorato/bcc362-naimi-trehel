@@ -210,9 +210,8 @@ main {
     flex-direction: column;
 }
 #timeline-container {
-    flex: 1;
-    min-height: 180px;
-    max-height: none;
+    flex-grow: 1;
+    max-height: 250px;
     overflow-y: auto;
     scroll-behavior: smooth;
 }
@@ -238,11 +237,10 @@ main {
 }
 
 #attack-panel .chart-container {
-    flex: 1;
-    min-height: 160px;
+    height: 145px;
     width: 100%;
     position: relative;
-    margin: 8px 0;
+    margin: auto 0;
 }
 
 #attack-alert { padding: 8px; text-align: center; font-weight: bold; border-radius: 6px; margin: 8px 0; transition: all 0.3s; }

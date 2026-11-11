@@ -6,7 +6,7 @@
     <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20261111_03">
+    <link rel="stylesheet" href="/static/style.css?v=20261111_04">
     <style>
         .topology-legend {
             display: flex;
@@ -42,15 +42,14 @@
         .dot-violation { background: #e74c3c; box-shadow: 0 0 7px rgba(231, 76, 60, 0.9); }
         #mermaid-graph svg { max-width: 100%; height: auto; }
 
-        /* Garante que os painéis da Linha 2 acompanhem a altura da Árvore e o gráfico preencha o card perfeitamente */
+        /* Painéis da Linha 2 com dimensões estáveis e gráfico centralizado */
         #timeline-panel {
             display: flex;
             flex-direction: column;
         }
         #timeline-container {
-            flex: 1;
-            min-height: 180px;
-            max-height: none;
+            flex-grow: 1;
+            max-height: 250px;
             overflow-y: auto;
             scroll-behavior: smooth;
         }
@@ -60,11 +59,10 @@
             justify-content: space-between;
         }
         #attack-panel .chart-container {
-            flex: 1;
-            min-height: 160px;
+            height: 145px;
             width: 100%;
             position: relative;
-            margin: 8px 0;
+            margin: auto 0;
         }
         #stats-bar {
             display: flex;
@@ -547,12 +545,6 @@
                 if (container) {
                     container.innerHTML = svg;
                 }
-
-                // Sincroniza o tamanho do gráfico de tráfego com o crescimento da árvore
-                if (typeof trafficChart !== 'undefined' && trafficChart) {
-                    trafficChart.resize();
-                }
-
             } catch (err) {
                 console.error("Erro na renderização do Mermaid:", err);
                 // Remove qualquer div de erro residual injetada pelo Mermaid no body
@@ -1598,7 +1590,6 @@
 
             trafficChart.data.labels = labels;
             trafficChart.data.datasets[0].data = data;
-            trafficChart.resize();
             trafficChart.update('none');
 
             document.getElementById('total-msgs').innerText = totalMessages;
@@ -1860,6 +1851,15 @@
             const manualBar = document.getElementById('manual-controls-bar');
             if (manualBar) manualBar.style.display = 'flex';
             addLog("[REPLAY] Modo Replay encerrado. Conectado ao cluster ao vivo.", "system");
+
+            // Limpa dados residuais de replay na linha do tempo e no gráfico
+            timelineEvents = [];
+            renderTimeline();
+            if (trafficChart) {
+                trafficChart.data.labels = [];
+                trafficChart.data.datasets[0].data = [];
+                trafficChart.update('none');
+            }
             
             // Re-sincroniza o estado atual ao vivo
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1872,11 +1872,6 @@
             renderManualButtons(currentScale);
             renderTopology();
             connectWS();
-            setTimeout(() => {
-                if (typeof trafficChart !== 'undefined' && trafficChart) {
-                    trafficChart.resize();
-                }
-            }, 300);
         });
 
         window.addEventListener('resize', () => {
