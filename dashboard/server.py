@@ -274,7 +274,7 @@ def update_cluster_state(body: dict):
     msg = body.get("message")
     if msg:
         cluster_state["recent_logs"].insert(0, {
-            "ts": datetime.now().strftime("%H:%M:%S"),
+            "ts": datetime.now().astimezone().isoformat(),
             "msg": msg,
             "sender": sender or "sistema"
         })
@@ -288,7 +288,7 @@ def update_cluster_state(body: dict):
                     "type": kw,
                     "desc": msg.replace(f"[{kw}]", "").replace(f"[{kw:<9}]", "").strip(),
                     "node": sender or "sistema",
-                    "time": datetime.now().strftime("%H:%M:%S")
+                    "time": datetime.now().astimezone().isoformat()
                 })
                 if len(cluster_state["recent_timeline"]) > 20:
                     cluster_state["recent_timeline"].pop()
@@ -332,7 +332,7 @@ recording_meta: dict = {}
 def record_event(payload: dict):
     if is_recording:
         p = dict(payload)
-        p["_ts"] = datetime.now().isoformat()
+        p["_ts"] = datetime.now().astimezone().isoformat()
         recording_buffer.append(p)
 
 
@@ -406,7 +406,7 @@ async def receive_event(request: Request):
 
     # Normaliza e transmite em broadcast
     payload = {"type": event_type, **body}
-    payload.setdefault("ts", datetime.now().isoformat())
+    payload.setdefault("ts", datetime.now().astimezone().isoformat())
 
     await manager.broadcast(payload)
     record_event(payload)
@@ -612,7 +612,7 @@ async def start_recording(request: Request):
     name = body.get("name") or f"Sessão {datetime.now().strftime('%d/%m %H:%M:%S')}"
     recording_meta = {
         "name": name,
-        "started_at": datetime.now().isoformat(),
+        "started_at": datetime.now().astimezone().isoformat(),
         "initial_state": json.loads(json.dumps(cluster_state))
     }
     recording_buffer = []
@@ -631,7 +631,7 @@ async def stop_recording():
         "id": session_id,
         "name": recording_meta.get("name", session_id),
         "started_at": recording_meta.get("started_at"),
-        "stopped_at": datetime.now().isoformat(),
+        "stopped_at": datetime.now().astimezone().isoformat(),
         "events_count": len(recording_buffer),
         "initial_state": recording_meta.get("initial_state", {}),
         "events": recording_buffer

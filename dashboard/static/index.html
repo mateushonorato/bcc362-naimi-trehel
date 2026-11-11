@@ -275,13 +275,68 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                layout: {
+                    padding: {
+                        left: 4,
+                        right: 14,
+                        top: 8,
+                        bottom: 2
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true, ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    x: { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { display: false } }
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#aaa', font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#aaa',
+                            maxTicksLimit: 7,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            font: { size: 10 }
+                        },
+                        grid: { display: false }
+                    }
                 },
                 plugins: { legend: { display: false } }
             }
         });
+
+        // ==============================================
+        // FORMATAÇÃO E PARSE DE DATA/HORA (PADRÃO 24H)
+        // ==============================================
+        function parseRecordedDate(rawTs) {
+            if (!rawTs) return new Date();
+            if (rawTs instanceof Date) return rawTs;
+            if (typeof rawTs === 'number') return new Date(rawTs);
+            let str = String(rawTs).trim();
+            if (/^\d{2}:\d{2}:\d{2}$/.test(str)) {
+                const now = new Date();
+                const [h, m, s] = str.split(':').map(Number);
+                now.setHours(h, m, s, 0);
+                return now;
+            }
+            // Se for string no formato ISO sem fuso (sem 'Z' e sem +HH:MM ou -HH:MM):
+            // Como gravações legadas foram feitas em contêineres Docker com UTC, adicionamos 'Z' para converter ao fuso local
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(str) && !str.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(str)) {
+                str = str + 'Z';
+            }
+            const d = new Date(str);
+            return isNaN(d.getTime()) ? new Date() : d;
+        }
+
+        function formatTime24h(dateOrTs) {
+            if (!dateOrTs) dateOrTs = new Date();
+            const d = parseRecordedDate(dateOrTs);
+            return d.toLocaleTimeString('pt-BR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
 
         // ==============================================
         // ESTADO GLOBAL DA APLICAÇÃO
@@ -354,7 +409,7 @@
         let windowMsgs = 0;
         setInterval(() => {
             if (isReplayMode) return;
-            const now = new Date().toLocaleTimeString();
+            const now = formatTime24h(new Date());
             trafficChart.data.labels.push(now);
             trafficChart.data.datasets[0].data.push(windowMsgs);
             if (trafficChart.data.labels.length > 25) {
@@ -564,7 +619,8 @@
                     const c = document.getElementById('log-container');
                     c.innerHTML = '';
                     s.recent_logs.slice().reverse().forEach(l => {
-                        addLog(`[${l.ts}] ${l.msg}`, getLogClass(l.msg));
+                        const tStr = l.ts ? formatTime24h(l.ts) : formatTime24h(new Date());
+                        addLog(`[${tStr}] ${l.msg}`, getLogClass(l.msg));
                     });
                 } else if (data.type === 'RESET') {
                     clearLogs();
@@ -577,7 +633,10 @@
                     if (ovStat) ovStat.style.color = '#2ecc71';
                 }
                 if (s.recent_timeline && s.recent_timeline.length > 0) {
-                    timelineEvents = s.recent_timeline.slice().reverse();
+                    timelineEvents = s.recent_timeline.slice().reverse().map(e => ({
+                        ...e,
+                        time: e.time ? formatTime24h(e.time) : formatTime24h(new Date())
+                    }));
                     renderTimeline();
                 } else if (data.type === 'RESET') {
                     timelineEvents = [];
@@ -689,7 +748,7 @@
                     document.getElementById('cs-entries-stat').innerText = csEntries;
                 }
 
-                addLog(`[${new Date().toLocaleTimeString()}] ${msg}`, logClass);
+                addLog(`[${formatTime24h(data.ts || new Date())}] ${msg}`, logClass);
             }
 
             // 4. Eventos do Observer
@@ -966,7 +1025,7 @@
         }
 
         function addTimeline(type, desc, node, timeStr) {
-            const t = timeStr || new Date().toLocaleTimeString();
+            const t = timeStr ? formatTime24h(timeStr) : formatTime24h(new Date());
             appendTimelineItem({ type, desc, node, time: t });
         }
 
@@ -1147,7 +1206,7 @@
         async function toggleRecording() {
             const btn = document.getElementById('record-btn');
             if (!isRecording) {
-                const name = prompt("Digite um nome descritivo para esta gravação (opcional):", `Demonstração ${new Date().toLocaleTimeString()}`);
+                const name = prompt("Digite um nome descritivo para esta gravação (opcional):", `Demonstração ${formatTime24h(new Date())}`);
                 await fetch('/replay/start-recording', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1200,11 +1259,20 @@
                 `;
 
                 data.sessions.forEach(s => {
+                    const cleanName = s.name.replace(/(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:AM|PM)/i, (match) => {
+                        try {
+                            const d = new Date(`1970-01-01 ${match}`);
+                            return isNaN(d.getTime()) ? match : formatTime24h(d);
+                        } catch {
+                            return match;
+                        }
+                    });
+                    const dateStr = s.date ? ` • ${formatTime24h(s.date)}` : '';
                     html += `
                         <tr>
                             <td>
-                                <b>${s.name}</b><br>
-                                <span style="font-size: 0.75em; color: #64748b;">${s.id}</span>
+                                <b>${cleanName}</b><br>
+                                <span style="font-size: 0.75em; color: #64748b;">${s.id}${dateStr}</span>
                             </td>
                             <td>${s.events_count} ev</td>
                             <td>
@@ -1271,7 +1339,8 @@
         function parseEpochMs(rawTs) {
             if (!rawTs) return Date.now();
             try {
-                const t = new Date(rawTs).getTime();
+                const d = parseRecordedDate(rawTs);
+                const t = d.getTime();
                 return isNaN(t) ? Date.now() : t;
             } catch {
                 return Date.now();
@@ -1279,13 +1348,7 @@
         }
 
         function formatRecordedTime(rawTs) {
-            if (!rawTs) return new Date().toLocaleTimeString();
-            try {
-                const d = new Date(rawTs);
-                return isNaN(d.getTime()) ? new Date().toLocaleTimeString() : d.toLocaleTimeString();
-            } catch {
-                return new Date().toLocaleTimeString();
-            }
+            return formatTime24h(rawTs);
         }
 
         function prepareReplayTrafficData(events, startedAt, stoppedAt) {
@@ -1300,17 +1363,17 @@
             let maxSec = -Infinity;
 
             if (startedAt) {
-                const s = Math.floor(new Date(startedAt).getTime() / 1000);
+                const s = Math.floor(parseRecordedDate(startedAt).getTime() / 1000);
                 if (!isNaN(s)) minSec = s;
             }
             if (stoppedAt) {
-                const s = Math.floor(new Date(stoppedAt).getTime() / 1000);
+                const s = Math.floor(parseRecordedDate(stoppedAt).getTime() / 1000);
                 if (!isNaN(s)) maxSec = s;
             }
 
             events.forEach((ev, idx) => {
                 const rawTs = ev._ts || ev.ts;
-                const d = rawTs ? new Date(rawTs) : new Date();
+                const d = parseRecordedDate(rawTs);
                 let sec = Math.floor(d.getTime() / 1000);
                 if (isNaN(sec)) sec = Math.floor(Date.now() / 1000);
 
@@ -1488,7 +1551,7 @@
             const labels = [];
             const data = [];
             for (let s = startSec; s <= currentSec; s++) {
-                labels.push(new Date(s * 1000).toLocaleTimeString());
+                labels.push(formatTime24h(new Date(s * 1000)));
                 data.push(replayTrafficBuckets[s] || 0);
             }
 
@@ -1535,7 +1598,16 @@
 
                 prepareReplayTrafficData(replayEvents, data.started_at, data.stopped_at);
 
-                document.getElementById('player-session-name').innerText = data.name || sessionId;
+                const rawName = data.name || sessionId;
+                const cleanName = rawName.replace(/(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:AM|PM)/i, (match) => {
+                    try {
+                        const d = new Date(`1970-01-01 ${match}`);
+                        return isNaN(d.getTime()) ? match : formatTime24h(d);
+                    } catch {
+                        return match;
+                    }
+                });
+                document.getElementById('player-session-name').innerText = cleanName;
                 document.getElementById('player-bar').style.display = 'flex';
                 document.getElementById('test-controls-bar').style.display = 'none';
                 const manualBar = document.getElementById('manual-controls-bar');
