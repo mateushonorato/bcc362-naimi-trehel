@@ -6,7 +6,7 @@
     <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20261111_08">
+    <link rel="stylesheet" href="/static/style.css?v=20261111_09">
     <style>
         .topology-legend {
             display: flex;
@@ -28,6 +28,7 @@
         .log-committed { border-left-color: #2ecc71; color: #2ecc71; }
         .nodes-legend {
             display: flex;
+            justify-content: center;
             gap: 12px;
             font-size: 0.78em;
             margin-bottom: 10px;
@@ -124,7 +125,6 @@
             <button class="btn-info" onclick="toggleRecording()" id="record-btn">⏺️ Gravar Sessão</button>
             <button class="btn-primary" onclick="openSessionsModal()">📂 Sessões Gravadas</button>
             <button class="btn-warning" onclick="resetAllMetrics()">🧹 Resetar Métricas</button>
-            <button class="btn-secondary" onclick="clearLogs()">🗑️ Limpar Logs</button>
         </div>
     </header>
 
@@ -134,9 +134,9 @@
         
         <div class="player-buttons">
             <button class="player-btn" onclick="seekReplay(0)" title="Ir para o Início">⏮️</button>
-            <button class="player-btn" onclick="stepBackward()" title="Passo Anterior">◀️</button>
-            <button class="player-btn" id="play-pause-btn" onclick="togglePlayPause()" title="Play / Pause">▶️</button>
-            <button class="player-btn" onclick="stepForward()" title="Próximo Passo">⏩</button>
+            <button class="player-btn" onclick="stepBackward()" title="Passo Anterior (Seta Esquerda)">⏪</button>
+            <button class="player-btn" id="play-pause-btn" onclick="togglePlayPause()" title="Play / Pause (Espaço)">▶️</button>
+            <button class="player-btn" onclick="stepForward()" title="Próximo Passo (Seta Direita)">⏩</button>
             <button class="player-btn" onclick="seekReplay(replayEvents.length - 1)" title="Ir para o Fim">⏭️</button>
         </div>
 
@@ -1950,6 +1950,24 @@
         window.addEventListener('resize', () => {
             if (typeof trafficChart !== 'undefined' && trafficChart) {
                 trafficChart.resize();
+            }
+        });
+
+        // Atalhos de Teclado (Modo Replay)
+        window.addEventListener('keydown', (e) => {
+            if (!isReplayMode) return;
+            const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toUpperCase() : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            if (e.code === 'Space' || e.key === ' ') {
+                e.preventDefault();
+                togglePlayPause();
+            } else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                stepBackward();
+            } else if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                stepForward();
             }
         });
     </script>

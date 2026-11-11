@@ -141,6 +141,7 @@ main {
 /* Status dos Nós */
 .nodes-legend {
     display: flex;
+    justify-content: center;
     gap: 12px;
     font-size: 0.78em;
     margin-bottom: 10px;
