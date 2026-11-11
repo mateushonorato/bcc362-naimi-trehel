@@ -6,7 +6,7 @@
     <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20261111_04">
+    <link rel="stylesheet" href="/static/style.css?v=20261111_05">
     <style>
         .topology-legend {
             display: flex;
@@ -59,10 +59,12 @@
             justify-content: space-between;
         }
         #attack-panel .chart-container {
-            height: 145px;
+            flex: 1 1 0;
+            min-height: 180px;
+            max-height: 250px;
             width: 100%;
             position: relative;
-            margin: auto 0;
+            margin: 4px 0 8px 0;
         }
         #stats-bar {
             display: flex;
