@@ -205,8 +205,14 @@ main {
 }
 
 /* Timeline */
+#timeline-panel {
+    display: flex;
+    flex-direction: column;
+}
 #timeline-container {
-    max-height: 250px;
+    flex: 1;
+    min-height: 180px;
+    max-height: none;
     overflow-y: auto;
     scroll-behavior: smooth;
 }
@@ -228,22 +234,15 @@ main {
 #attack-panel {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 }
 
 #attack-panel .chart-container {
     flex: 1;
-    min-height: 150px;
+    min-height: 160px;
     width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     position: relative;
     margin: 8px 0;
-}
-
-.chart-container canvas {
-    width: 100% !important;
-    height: 100% !important;
 }
 
 #attack-alert { padding: 8px; text-align: center; font-weight: bold; border-radius: 6px; margin: 8px 0; transition: all 0.3s; }
@@ -260,6 +259,7 @@ main {
     background: rgba(0, 0, 0, 0.25);
     border-radius: 6px;
     margin-top: auto;
+    flex-shrink: 0;
 }
 #stats-bar b { color: #00ffcc; }
 .text-danger { color: #e74c3c !important; }

@@ -6,7 +6,7 @@
     <title>Cluster Sync — Painel de Controle Naimi–Tréhel</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20261111_03">
     <style>
         .topology-legend {
             display: flex;
@@ -41,6 +41,42 @@
         .dot-dead { background: #7f8c8d; }
         .dot-violation { background: #e74c3c; box-shadow: 0 0 7px rgba(231, 76, 60, 0.9); }
         #mermaid-graph svg { max-width: 100%; height: auto; }
+
+        /* Garante que os painéis da Linha 2 acompanhem a altura da Árvore e o gráfico preencha o card perfeitamente */
+        #timeline-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        #timeline-container {
+            flex: 1;
+            min-height: 180px;
+            max-height: none;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        #attack-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #attack-panel .chart-container {
+            flex: 1;
+            min-height: 160px;
+            width: 100%;
+            position: relative;
+            margin: 8px 0;
+        }
+        #stats-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 0.8em;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 6px;
+            margin-top: auto;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -510,6 +546,11 @@
                 const container = document.getElementById('mermaid-graph');
                 if (container) {
                     container.innerHTML = svg;
+                }
+
+                // Sincroniza o tamanho do gráfico de tráfego com o crescimento da árvore
+                if (typeof trafficChart !== 'undefined' && trafficChart) {
+                    trafficChart.resize();
                 }
 
             } catch (err) {
@@ -1557,6 +1598,7 @@
 
             trafficChart.data.labels = labels;
             trafficChart.data.datasets[0].data = data;
+            trafficChart.resize();
             trafficChart.update('none');
 
             document.getElementById('total-msgs').innerText = totalMessages;
@@ -1830,6 +1872,17 @@
             renderManualButtons(currentScale);
             renderTopology();
             connectWS();
+            setTimeout(() => {
+                if (typeof trafficChart !== 'undefined' && trafficChart) {
+                    trafficChart.resize();
+                }
+            }, 300);
+        });
+
+        window.addEventListener('resize', () => {
+            if (typeof trafficChart !== 'undefined' && trafficChart) {
+                trafficChart.resize();
+            }
         });
     </script>
 </body>
