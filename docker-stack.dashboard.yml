@@ -1,3 +1,8 @@
+networks:
+  syncnet:
+    driver: overlay
+    attachable: true
+
 services:
   dashboard:
     image: tp2-dashboard:latest
@@ -9,7 +14,9 @@ services:
       TZ: "America/Sao_Paulo"
       OBSERVER_URL: "http://observer:9000"
     networks:
-      - syncnet
+      syncnet:
+        aliases:
+          - dashboard
     deploy:
       placement:
         constraints: [node.labels.vm == vm1]
