@@ -1,12 +1,14 @@
 services:
   observer:
     build: .
+    image: sd2-app:latest
     command: ["python", "observer.py"]
     ports:
       - "9000:9000"
 
   node1:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node1"
@@ -21,6 +23,7 @@ services:
 
   node2:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node2"
@@ -35,6 +38,7 @@ services:
 
   node3:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node3"
@@ -49,6 +53,7 @@ services:
 
   node4:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node4"
@@ -63,6 +68,7 @@ services:
 
   node5:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node5"
@@ -77,6 +83,7 @@ services:
 
   client1:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client1"
@@ -90,6 +97,7 @@ services:
 
   client2:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client2"
@@ -103,6 +111,7 @@ services:
 
   client3:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client3"
@@ -116,6 +125,7 @@ services:
 
   client4:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client4"
@@ -129,6 +139,7 @@ services:
 
   client5:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client5"

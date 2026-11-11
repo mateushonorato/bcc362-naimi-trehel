@@ -1,6 +1,7 @@
 services:
   node6:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node6"
@@ -15,6 +16,7 @@ services:
 
   node7:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node7"
@@ -29,6 +31,7 @@ services:
 
   node8:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node8"
@@ -43,6 +46,7 @@ services:
 
   node9:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node9"
@@ -57,6 +61,7 @@ services:
 
   node10:
     build: .
+    image: sd2-app:latest
     command: ["python", "node.py"]
     environment:
       NODE_ID: "node10"
@@ -71,6 +76,7 @@ services:
 
   client6:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client6"
@@ -84,6 +90,7 @@ services:
 
   client7:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client7"
@@ -97,6 +104,7 @@ services:
 
   client8:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client8"
@@ -110,6 +118,7 @@ services:
 
   client9:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client9"
@@ -123,6 +132,7 @@ services:
 
   client10:
     build: .
+    image: sd2-app:latest
     command: ["python", "client.py"]
     environment:
       CLIENT_ID: "client10"
