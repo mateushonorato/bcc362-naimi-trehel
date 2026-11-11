@@ -127,9 +127,9 @@ def set_cluster_scale_containers(scale: int):
         if targets:
             rep = 1 if scale == 10 else 0
             scale_args = " ".join([f"{svc}={rep}" for svc in targets])
-            cmd = f"docker service scale {scale_args}"
+            cmd = f"docker service scale -d {scale_args}"
             print(f"[SCALE SWARM] Executing: {cmd}", flush=True)
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             if res.returncode != 0:
                 print(f"[SCALE SWARM ERROR] {res.stderr}", flush=True)
             else:
