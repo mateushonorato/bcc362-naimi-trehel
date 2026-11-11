@@ -265,10 +265,16 @@ main {
 .text-danger { color: #e74c3c !important; }
 
 /* Métricas */
+#metrics-panel {
+    display: flex;
+    flex-direction: column;
+}
 #metrics-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
+    width: 100%;
+    margin: auto 0;
 }
 .metric { background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 6px; text-align: center; }
 .metric span { display: block; color: #aaa; font-size: 0.75em; margin-bottom: 5px; }
