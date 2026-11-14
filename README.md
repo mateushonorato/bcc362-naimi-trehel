@@ -102,14 +102,17 @@ O custo médio $\mathcal{O}(\log N)$ do Naimi–Tréhel é **amortizado**: ele p
 │       ├── 03_efeito_localidade.png            # Economia de mensagens por reuso local do token (Carga Desigual)
 │       └── 04_overhead_rede_local_vs_nuvem.png # Comparativo de latência de espera: Local vs. Nuvem OCI
 ├── Dockerfile                      # Definição da imagem leve baseada em python:3.12-alpine
-├── dashboard/                      # Dashboard Web em tempo real para demonstração no seminário
+├── dashboard/                      # Dashboard Web em tempo real
 │   ├── server.py                   # Servidor FastAPI com WebSockets (/ws) e streaming de eventos (/event)
 │   ├── Dockerfile                  # Container do dashboard com FastAPI, Uvicorn e WebSockets
+│   ├── screenshot.png              # Captura de tela da interface web do dashboard
 │   ├── sessions/                   # Diretório para armazenamento e replay de sessões gravadas
 │   └── static/                     # Interface gráfica (index.html, style.css, Mermaid.js e Chart.js)
+├── docker-compose.dashboard.yml    # Orquestração do dashboard para Docker Compose local
 ├── docker-compose.yml              # Orquestração local base com 5 nós, 5 clientes e 1 observador
 ├── docker-compose.ten-nodes.yml    # Extensão Compose para escala de 10 nós (adiciona node6..10 e client6..10)
 ├── docker-compose.unequal.yml      # Override Compose de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
+├── docker-stack.dashboard.yml      # Orquestração do dashboard para Docker Swarm na nuvem
 ├── docker-stack.yml                # Orquestração Swarm base com 5 nós distribuídos em 3 VMs (Oracle Cloud)
 ├── docker-stack.ten-nodes.yml      # Extensão Swarm para escala de 10 nós (distribuição simétrica 7/7/7)
 ├── docker-stack.unequal.yml        # Override Swarm de carga desigual (redefine client1 para intervalo 0.1 a 0.3s)
@@ -191,35 +194,35 @@ docker compose down --remove-orphans
 > docker compose -f docker-compose.yml -f docker-compose.ten-nodes.yml down
 > ```
 
-### 5.4. Dashboard Web em Tempo Real (Demonstração Visual & Seminário)
+### 5.4. Dashboard Web em Tempo Real
 
-O projeto inclui um painel web interativo e desacoplado para acompanhamento didático ao vivo da execução do protocolo (ideal para a demonstração prática de 8 minutos no seminário):
+Interface gráfica desacoplada para monitoramento em tempo real, depuração da topologia lógica e análise determinística do protocolo:
 
-- **Acesso pelo navegador:** [`http://localhost:8080`](http://localhost:8080)
-- **Execução Desacoplada (Ciclo de Vida Independente):**
-  O dashboard roda em seu próprio contêiner perene na rede compartilhada `tp2-net`:
-  ```bash
-  # Iniciar o Dashboard (permanece ativo mesmo se o cluster de nós for reiniciado):
-  docker compose -f docker-compose.dashboard.yml up -d
-  ```
-- **Topologia Completa de Naimi–Tréhel (Mermaid.js):**
-  - **Árvore de Busca (`father`):** visualização em tempo real da inversão dos ponteiros direcionados ao último requerente.
-  - **Fila FIFO Distribuída (`next`):** arestas pontilhadas laranjas e painel dedicado exibindo a fila de nós que aguardam a passagem do token.
-  - **Posse do Token (`has_token`) e Seção Crítica:** destaque visual do portador do token (coroa 👑) e do nó em execução na SC (raio ⚡).
-- **Orquestrador de Cenários & Escala Ortogonal (5 ou 10 Nós):**
-  Permite selecionar a escala do cluster (**5 Nós** ou **10 Nós**) e combiná-la com qualquer um dos cenários do relatório acadêmico:
-  - *📊 Carga Normal (intervalos de 1–5s)*
-  - *⚡ Alta Contenção (disputa imediata com intervalo 0s)*
-  - *🎯 Carga Desigual / Localidade (nós 1 e 2 concentram requisições)*
-  - *⚠️ Prova de Instrumentação (Sync OFF):* desativa dinamicamente o mutex distribuído nos nós via endpoint `/sync/set` em runtime; gera acessos concorrentes deliberados, o observador detecta sobreposições (`overlap: true`) e o dashboard exibe um alerta vermelho em destaque comprovando o funcionamento da instrumentação passiva. A sincronização é automaticamente restaurada ao término.
-  - *👆 Passo a Passo Manual (Disparo Unitário ou Disputa Concorrente Didática).*
-  - **Orquestração Dinâmica via Docker Socket:** ao alternar entre 5 e 10 nós, o backend do dashboard automaticamente sobe ou para os contêineres `node6..node10` através do socket `/var/run/docker.sock`, reconfigurando a topologia instantaneamente.
-- **Player de Replay Quadro a Quadro (Step-by-Step):**
-  Controle multimídia client-side (`[⏮️ Início]`, `[◀️ Passo Anterior]`, `[⏯️ Play/Pause]`, `[▶️ Próximo Passo]`, `[⏭️ Fim]`, scrubber de eventos e seletor de velocidade `0.5x/1x/2.5x`) para congelar e analisar minuciosamente cada reversão de ponteiro.
-- **Gerenciador de Gravações & Demonstrações:**
-  Modal integrado para listar gravações salvas, baixar arquivos `.json` ou importar sessões pré-gravadas (garantindo que a apresentação no seminário funcione até mesmo offline).
-- **Métricas Instantâneas & Reset:**
-  Tráfego por segundo (Chart.js), tempos de permanência na SC, tempo de espera mediano por nó (Heatmap) e botão `🧹 Resetar Métricas` para preparar a tela entre demonstrações.
+<p align="center">
+  <img src="dashboard/screenshot.png" alt="Painel de Controle Web em Tempo Real — Algoritmo de Naimi–Tréhel" width="900">
+</p>
+
+```bash
+# Inicialização local (Docker Compose):
+docker compose -f docker-compose.dashboard.yml up -d
+
+# Inicialização no cluster em nuvem (Docker Swarm — VM Manager):
+docker stack deploy -c docker-stack.dashboard.yml tp2
+```
+
+- **Topologia Reativa e Fila Distribuída (Mermaid.js):**
+  - Renderização contínua da árvore de busca (`father`) e reversão imediata de caminhos direcionados ao último requerente.
+  - Acompanhamento da fila FIFO distribuída (`next`), indicação visual do portador do token (👑) e do nó em execução na Seção Crítica (⚡).
+- **Orquestrador de Carga & Escala Dinâmica (5 ou 10 Nós):**
+  - Redimensionamento automático do cluster via Docker Socket (`node6..node10`), com detecção autônoma de ambiente (suporta Docker Compose local e Docker Swarm em nuvem).
+  - Emissão assíncrona de requisições concorrentes sem depender de contêineres de clientes dedicados.
+  - Cenários de execução: *Carga Normal* (1–5s), *Alta Contenção* (0s), *Carga Desigual / Localidade* e *Passo a Passo Manual* (disparos unitários ou disputas simultâneas).
+  - *Prova de Instrumentação (Sync OFF):* desativação do mutex nos nós em runtime para forçar sobreposições intencionais na Seção Crítica, validando a detecção passiva de violações (`overlap: true`) com alerta visual.
+- **Player de Replay Quadro a Quadro:**
+  - Inspeção passo a passo com scrubber temporal, seletor de velocidade (`0.5x`, `1.0x`, `2.5x`) e atalhos de teclado (`Espaço` para Play/Pause, `←` e `→` para retroceder/avançar).
+  - Gravação, exportação e importação de sessões (`.json`) para reprodução offline determinística.
+- **Telemetria e Métricas em Tempo Real:**
+  - Gráfico de tráfego de mensagens por segundo (Chart.js), tempos de permanência em SC, latência mediana de espera por nó (heatmap comparativo) e botão de reset unificado.
 
 ---
 
