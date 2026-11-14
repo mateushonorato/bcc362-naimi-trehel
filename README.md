@@ -14,7 +14,7 @@ Este projeto implementa uma solução distribuída para coordenar acessos concor
 - **Processos do Cluster Sync (`node1` a `node5` ou `node1` a `node10`):** Executam o protocolo distribuído de **Naimi–Tréhel** (1996), mantendo uma árvore lógica dinâmica reorganizada por reversão de caminhos (*path reversal*) e uma fila distribuída de pedidos pendentes (`next_queue`).
 - **Clientes Geradores de Carga (`client1` a `client5` ou `client1` a `client10`):** Cada cliente conhece exclusivamente um nó do Cluster Sync e realiza requisições sequenciais de escrita identificadas unicamente por `request_id` (ex.: `client1-001`).
 - **Processo Observador (`observer`):** Serviço independente de instrumentação que recebe notificações `BEGIN` e `END` de todos os nós ao entrarem e saírem da seção crítica simulada. Ele contabiliza acessos simultâneos e acusa violações de exclusão mútua (`overlap_events`) sem depender de sincronização de relógios físicos entre máquinas distintas.
-- **Automação de Benchmark (`collect_metrics.py`):** Script CLI que orquestra a execução completa dos cenários de teste (local ou nuvem), repetições, variação de sementes pseudoaleatórias, coleta de métricas via REST e exportação estruturada para JSON e CSV.
+- **Automação de Benchmark (`collect_metrics.py`):** Script que orquestra a execução completa dos cenários de teste (local ou nuvem), repetições, variação de sementes pseudoaleatórias, coleta de métricas via REST e exportação estruturada para JSON e CSV.
 
 ### Separação entre Sincronização e Seção Crítica
 No código do nó (`node.py`), a sincronização distribuída é estritamente isolada nas primitivas `acquire(R, request_id)` e `release(R, request_id)`:
