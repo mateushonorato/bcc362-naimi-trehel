@@ -2,7 +2,7 @@
 
 **Disciplina:** BCC362 — Sistemas Distribuídos (UFOP)  
 **Professor:** Joubert Lima  
-**Equipe:** Kevin, Mateus e Crescêncio  
+**Equipe:** Kevin e Mateus  
 **Opção Escolhida:** Trilha A — A7: Algoritmo de Naimi–Tréhel (Exclusão Mútua por Token e Árvore Lógica Dinâmica com Reversão de Caminhos)
 
 ---
